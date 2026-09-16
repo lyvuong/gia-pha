@@ -2,6 +2,7 @@ import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { generateBio } from './generateBio'
 import { vietnameseCollator } from './normalizeVietnamese'
+import { generationOffset } from './treeLayout'
 import type { Member, NameLabel } from '../types/models'
 
 const PAGE_WIDTH = 210 // A4 mm
@@ -55,6 +56,7 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
     byGeneration.set(m.generation, list)
   }
   const generations = [...byGeneration.keys()].sort((a, b) => a - b)
+  const genOffset = generationOffset(members)
 
   doc.addPage()
   let y = MARGIN
@@ -70,7 +72,7 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
       y = MARGIN
     }
     doc.setFontSize(13)
-    doc.text(`Thế hệ ${generation}`, MARGIN, y)
+    doc.text(`Thế hệ ${generation + genOffset}`, MARGIN, y)
     y += 7
 
     for (const member of list) {

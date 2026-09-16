@@ -9,6 +9,16 @@ const ROW_HEIGHT = 180
 
 export interface TreeNodeData extends Record<string, unknown> {
   member?: Member
+  displayGeneration?: number
+}
+
+/** Stored `generation` values are relative (can be negative, e.g. an ancestor added
+ * above generation 0) and used directly in layout/relationship math, so they're never
+ * renumbered in place. This is the offset to add only when *displaying* a generation
+ * number to a user, so the oldest generation always reads as 1. */
+export function generationOffset(members: Member[]): number {
+  if (members.length === 0) return 0
+  return 1 - Math.min(...members.map((m) => m.generation))
 }
 
 export type TreeNode = Node<TreeNodeData>
@@ -145,11 +155,12 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
+  const genOffset = generationOffset(members)
   const nodes: TreeNode[] = members.map((m) => ({
     id: m.id,
     type: 'memberNode',
     position: positions.get(m.id) ?? { x: 0, y: 0 },
-    data: { member: m },
+    data: { member: m, displayGeneration: m.generation + genOffset },
   }))
 
   const edges: TreeEdge[] = []
