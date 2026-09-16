@@ -216,6 +216,26 @@
   pointer-events: none;
 }
 
+.marriage-hub {
+  width: 1px;
+  height: 1px;
+  position: relative;
+}
+
+.marriage-hub::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-gold-dark);
+  border: 2px solid var(--color-panel-bg);
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+
 .spouse-edge {
   stroke: var(--color-gold-dark);
   stroke-width: 2;

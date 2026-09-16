@@ -16,6 +16,7 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
   return (
     <div className={`member-node${selected ? ' member-node-selected' : ''}`}>
       <Handle type="target" position={Position.Top} />
+      <Handle type="source" id="top" position={Position.Top} />
       <Handle type="target" id="left" position={Position.Left} />
       <Handle type="source" id="left" position={Position.Left} />
       <Avatar name={birthName ?? member.fullName} photoUrl={member.photoUrl} size={44} />
