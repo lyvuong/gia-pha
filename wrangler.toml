@@ -1,7 +1,12 @@
 name = "gia-pha"
 compatibility_date = "2026-09-15"
-pages_build_output_dir = "frontend/dist"
+main = "src/worker.js"
+
+[assets]
+directory = "frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 [vars]
 FIREBASE_PROJECT_ID = "your-firebase-project-id"
-APP_ORIGIN = "https://gia-pha.pages.dev"
+APP_ORIGIN = "https://gia-pha.<your-subdomain>.workers.dev"

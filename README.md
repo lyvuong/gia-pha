@@ -7,12 +7,13 @@ A collaborative, cloud-synced Vietnamese family genealogy PWA. See
 
 ```
 frontend/           React + Vite PWA (the actual app)
-functions/join/     Cloudflare Pages Function — server-rendered OG preview for /join/:code
+src/worker.js       Cloudflare Worker entry point — serves the built SPA (via the ASSETS
+                     binding) and intercepts /join/:code for a server-rendered OG preview
 firestore.rules      Firestore security rules
 storage.rules         Firebase Storage security rules
 firestore.indexes.json
 firebase.json         Points the Firebase CLI at the two rules files above
-wrangler.toml          Cloudflare Pages project config
+wrangler.toml          Cloudflare Worker + static-assets config
 ```
 
 ## Status
@@ -51,24 +52,35 @@ npm ci
 npm run dev
 ```
 
-## 3. Deploy to Cloudflare Pages
+## 3. Deploy to Cloudflare Workers & Pages
+
+This deploys as a **Worker with static assets** (Cloudflare's current unified
+model — `wrangler deploy`, not the older, separate Pages product's
+`wrangler pages deploy`). `wrangler.toml`'s `[assets]` block points at
+`frontend/dist`, and `src/worker.js` is the Worker entry point: it serves
+the built SPA via the `ASSETS` binding (including SPA-style fallback for
+client-routed paths like `/tree/:id`, via `not_found_handling`) and
+intercepts `/join/:code` itself for the WhatsApp OG preview — no separate
+Pages Functions directory needed.
 
 1. Edit `wrangler.toml`: set `FIREBASE_PROJECT_ID` to your Firebase project
-   id, and `APP_ORIGIN` to your Pages domain.
-2. In the Cloudflare Pages project settings, add the same `VITE_FIREBASE_*`
+   id, and `APP_ORIGIN` to your Worker's public URL (e.g. your
+   `*.workers.dev` subdomain, or a custom domain once attached).
+2. If deploying via the Cloudflare dashboard's git integration (Workers
+   Builds), set the **build command** to `cd frontend && npm ci && npm run
+   build` in the project's build settings, and add the `VITE_FIREBASE_*`
    variables from `frontend/.env` as **build-time environment variables**
-   (Vite bakes them into the bundle at build time, so `frontend/.env` alone
-   isn't enough for the deployed build).
-3. Build command: `cd frontend && npm ci && npm run build`. Build output
-   directory: `frontend/dist`.
-4. Deploy:
+   there (Vite bakes them into the bundle at build time, so `frontend/.env`
+   alone isn't enough for the deployed build).
+3. Or deploy directly from the CLI:
    ```bash
+   cd frontend && npm ci && npm run build && cd ..
    npx wrangler deploy
    ```
 
-The `functions/join/[code].js` Pages Function needs no secrets — it reads
-the public `inviteCodes/{code}` Firestore doc over the plain REST API,
-which `firestore.rules` scopes to a `get`-only, `list`-denied public read.
+The join-preview lookup needs no secrets — it reads the public
+`inviteCodes/{code}` Firestore doc over the plain REST API, which
+`firestore.rules` scopes to a `get`-only, `list`-denied public read.
 
 ## Known v1 simplifications
 
