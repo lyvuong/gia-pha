@@ -402,10 +402,3 @@
   white-space: nowrap;
 }
 
-.user-menu-signout {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  color: white;
-  padding: 6px 10px;
-  font-size: 12px;
-}
