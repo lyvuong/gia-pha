@@ -68,7 +68,7 @@ export function TreePage() {
   return (
     <div className="tree-page">
       <header className="tree-page-header">
-        <Logo size={36} />
+        <Logo size={36} onDark />
         {editingName ? (
           <input
             className="tree-title-input"

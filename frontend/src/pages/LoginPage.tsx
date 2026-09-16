@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { Logo } from '../components/common/Logo'
 import { ThemeToggle } from '../components/common/ThemeToggle'
 import { useAuth } from '../context/AuthProvider'
+import { useTheme } from '../hooks/useTheme'
 
 const RECAPTCHA_CONTAINER_ID = 'recaptcha-container'
 
 export function LoginPage() {
   const { t } = useTranslation()
+  const { theme } = useTheme()
   const { signInWithGoogle, signInWithPhone } = useAuth()
   const [phoneNumber, setPhoneNumber] = useState('')
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null)
@@ -61,7 +63,7 @@ export function LoginPage() {
       <div className="page-theme-toggle">
         <ThemeToggle />
       </div>
-      <Logo size={72} />
+      <Logo size={72} onDark={theme === 'dark'} />
       <h1>{t('auth.signInTitle')}</h1>
 
       <section className="phone-signin">

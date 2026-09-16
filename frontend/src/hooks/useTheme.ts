@@ -1,15 +1,12 @@
-import { useState } from 'react'
-import { applyTheme, getInitialTheme, type Theme } from '../lib/theme'
+import { useSyncExternalStore } from 'react'
+import { applyTheme, getTheme, subscribeTheme, type Theme } from '../lib/theme'
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const theme = useSyncExternalStore(subscribeTheme, getTheme)
 
   function toggleTheme() {
-    setTheme((current) => {
-      const next: Theme = current === 'dark' ? 'light' : 'dark'
-      applyTheme(next)
-      return next
-    })
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    applyTheme(next)
   }
 
   return { theme, toggleTheme }
