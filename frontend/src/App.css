@@ -343,10 +343,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .photo-uploader-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.photo-uploader-label input[type="file"] {
+  max-width: 100%;
 }
 
 .add-relative-picker {
@@ -413,5 +423,66 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Small screens: icon-only controls, full-width panels, tighter spacing */
+@media (max-width: 640px) {
+  .tree-page-header {
+    padding: 10px 10px;
+    gap: 4px;
+  }
+
+  .tree-title,
+  .tree-title-input {
+    min-width: 70px;
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    flex-shrink: 1;
+  }
+
+  .search-bar {
+    flex-shrink: 3;
+  }
+
+  .search-bar input {
+    width: 0;
+    min-width: 34px;
+    flex: 1;
+    padding-left: 28px;
+    padding-right: 6px;
+  }
+
+  .icon-button .btn-label,
+  .user-menu-name {
+    display: none;
+  }
+
+  .icon-button {
+    padding: 6px;
+  }
+
+  .language-toggle {
+    padding: 6px 8px;
+  }
+
+  .user-menu {
+    gap: 0;
+  }
+
+  .member-detail-panel {
+    width: 100%;
+    padding: 16px;
+    padding-top: 48px;
+  }
+
+  .login-page,
+  .join-page,
+  .create-tree-page {
+    margin: 24px 16px;
+    padding: 24px 20px;
+  }
 }
 

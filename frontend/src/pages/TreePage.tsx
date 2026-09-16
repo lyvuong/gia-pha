@@ -95,9 +95,9 @@ export function TreePage() {
             setCenterOnMemberId(m.id)
           }}
         />
-        <button type="button" className="icon-button" onClick={() => setAdding(true)}>
+        <button type="button" className="icon-button" onClick={() => setAdding(true)} title={t('tree.addMember')}>
           <AddMemberIcon size={15} />
-          {t('tree.addMember')}
+          <span className="btn-label">{t('tree.addMember')}</span>
         </button>
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />

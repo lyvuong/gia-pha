@@ -40,3 +40,14 @@ export function ExportIcon({ size = 16 }: IconProps) {
     </svg>
   )
 }
+
+export function LanguageIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...commonProps} width={size} height={size} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="3" y1="14" x2="21" y2="14" />
+    </svg>
+  )
+}

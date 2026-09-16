@@ -26,9 +26,15 @@ export function PdfExportButton({ giaPhaName, members, treeContainerRef }: PdfEx
   }
 
   return (
-    <button type="button" className="pdf-export-button icon-button" onClick={handleExport} disabled={exporting}>
+    <button
+      type="button"
+      className="pdf-export-button icon-button"
+      onClick={handleExport}
+      disabled={exporting}
+      title={t('tree.exportPdf')}
+    >
       {!exporting && <ExportIcon size={15} />}
-      {exporting ? t('common.loading') : t('tree.exportPdf')}
+      <span className="btn-label">{exporting ? t('common.loading') : t('tree.exportPdf')}</span>
     </button>
   )
 }
