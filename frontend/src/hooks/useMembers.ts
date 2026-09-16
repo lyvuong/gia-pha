@@ -51,6 +51,8 @@ function fromDoc(id: string, data: Record<string, unknown>): Member {
     lastEditedBy: (data.lastEditedBy as string) ?? '',
     lastEditedAt: lastEditedAt?.toMillis() ?? Date.now(),
     deletedAt: (data.deletedAt as Timestamp | undefined)?.toMillis() ?? null,
+    treePosition: (data.treePosition as Member['treePosition']) ?? null,
+    unionTreePosition: (data.unionTreePosition as Member['unionTreePosition']) ?? null,
   }
 }
 
@@ -125,6 +127,55 @@ export async function restoreMember(giaPhaId: string, memberId: string, uid: str
  * already been soft-deleted once via `trashMember`. */
 export async function permanentlyDeleteMember(giaPhaId: string, memberId: string): Promise<void> {
   await deleteDoc(doc(db, 'giaPha', giaPhaId, 'members', memberId))
+}
+
+/** Persists a manual drag override for where this member sits in the tree view — see
+ * `Member.treePosition`. */
+export async function setTreePosition(
+  giaPhaId: string,
+  memberId: string,
+  position: { x: number; y: number },
+  uid: string,
+): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPhaId, 'members', memberId), {
+    treePosition: position,
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+  })
+}
+
+/** Clears a manual drag override, handing this member back to the automatic layout. */
+export async function resetTreePosition(giaPhaId: string, memberId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPhaId, 'members', memberId), {
+    treePosition: null,
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+  })
+}
+
+/** Persists a manual drag override for the connector dot anchoring `spouseMemberId`'s own
+ * marriage — see `Member.unionTreePosition`. */
+export async function setUnionTreePosition(
+  giaPhaId: string,
+  spouseMemberId: string,
+  position: { x: number; y: number },
+  uid: string,
+): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPhaId, 'members', spouseMemberId), {
+    unionTreePosition: position,
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+  })
+}
+
+/** Clears a manual drag override for a connector dot, handing it back to the automatic
+ * layout. */
+export async function resetUnionTreePosition(giaPhaId: string, spouseMemberId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPhaId, 'members', spouseMemberId), {
+    unionTreePosition: null,
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+  })
 }
 
 /**

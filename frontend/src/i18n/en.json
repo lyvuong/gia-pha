@@ -65,7 +65,9 @@
     "deleteForeverConfirm": "Permanently delete {{name}}? This cannot be undone.",
     "addRelative": "Add a relative of {{name}}",
     "addRelativeShort": "Add relative",
-    "chooseRelationship": "Relationship"
+    "chooseRelationship": "Relationship",
+    "resetPosition": "Reset position in tree",
+    "resetUnionPosition": "Reset connector line position"
   },
   "relationship": {
     "father": "Father",

@@ -55,6 +55,21 @@ export interface Member {
   /** Set when the member is moved to Trash instead of being permanently deleted; null
    * while active. Lets an accidental delete be undone via `restoreMember`. */
   deletedAt: number | null
+  /** A manual drag override for this member's position in the tree view, in the tree
+   * layout's own coordinate space (see `lib/treeLayout.ts`). Null means "let the
+   * automatic layout place this member" (the default and common case). Set by dragging
+   * a box in the tree — lets someone nudge a box aside to clear a line crossing the
+   * automatic layout didn't avoid, without affecting anyone else's position. */
+  treePosition: { x: number; y: number } | null
+  /** A manual drag override for the small connector dot anchoring *this member's own
+   * marriage* (i.e. the union of this member and their spouse) — only meaningful for a
+   * member who is the non-anchor side of some marriage (see `lib/treeLayout.ts`). Lets
+   * someone nudge the dot itself, separately from either spouse's own box, to clear a
+   * line crossing that moving a box alone couldn't fix. */
+  unionTreePosition: { x: number; y: number } | null
 }
 
-export type NewMember = Omit<Member, 'id' | 'searchKey' | 'lastEditedBy' | 'lastEditedAt' | 'deletedAt'>
+export type NewMember = Omit<
+  Member,
+  'id' | 'searchKey' | 'lastEditedBy' | 'lastEditedAt' | 'deletedAt' | 'treePosition' | 'unionTreePosition'
+>

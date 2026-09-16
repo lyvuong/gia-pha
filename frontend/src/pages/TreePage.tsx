@@ -134,6 +134,8 @@ export function TreePage() {
 
       <div className="tree-page-body">
         <TreeView
+          giaPhaId={giaPha.id}
+          currentUid={user.uid}
           members={members}
           selectedMemberId={selectedMember?.id ?? null}
           centerOnMemberId={centerOnMemberId}

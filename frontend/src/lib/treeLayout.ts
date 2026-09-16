@@ -25,6 +25,12 @@ export interface TreeNodeData extends Record<string, unknown> {
   displayGeneration?: number
   /** Union-node only: the color shared with its spouse line and its children's edges. */
   color?: string
+  /** Union-node only: the non-anchor spouse this union belongs to — where a manual drag
+   * override for this specific dot is persisted (see `Member.unionTreePosition`). */
+  spouseId?: string
+  /** Union-node only: the other half of the couple, used (along with `spouseId`'s own
+   * position) to compute this dot's two drag-snap candidates. */
+  anchorId?: string
 }
 
 /** Stored `generation` values are relative (can be negative, e.g. an ancestor added
@@ -347,6 +353,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // rather than vanishing.
   members.filter((m) => !visited.has(m.id)).forEach((m, i) => positions.set(m.id, { x: i * (NODE_WIDTH + HORIZONTAL_GAP), y: 0 }))
 
+  // A manual drag (see `Member.treePosition`) overrides the automatic position for just
+  // that one member — everyone else stays exactly where the automatic layout put them.
+  const overridden = new Set<string>()
+  for (const m of members) {
+    if (m.treePosition) {
+      positions.set(m.id, m.treePosition)
+      overridden.add(m.id)
+    }
+  }
+
   let colorIndex = 0
   const unionColors = new Map<string, string>()
   for (const unit of unitsByKey.values()) {
@@ -381,11 +397,38 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     if (!anchorPos || !unit.spouse) continue
     const spousePos = positions.get(unit.spouse.id)!
     const color = unionColors.get(unit.key)
-    const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
-
+    // A manually dragged member (either side of the pair) has left whatever slot the
+    // automatic layout's no-crossing guarantees were computed for, so those guarantees —
+    // and the pinned-line machinery that provides them — no longer apply here. Fall back
+    // to a plain, unpinned orthogonal connector instead: still never diagonal, just no
+    // longer promised crossing-free against the rest of the row.
+    const manuallyPlaced = overridden.has(unit.anchor.id) || overridden.has(unit.spouse.id)
+    const stacked = !manuallyPlaced && (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
+    const unionId = `union-${unit.key}`
+    // The connector dot itself can also be manually dragged (see `Member.unionTreePosition`,
+    // stored on the non-anchor spouse) — independent of whether either box was moved —
+    // to nudge just the bend point when that alone would clear a crossing.
+    const unionOverride = unit.spouse.unionTreePosition
     let unionAnchorPos: { x: number; y: number }
+    // Whether a `spouse-to-union` connector edge is needed: automatic & adjacent couples
+    // don't need one (the dot sits right on the marriage line already), but any manually
+    // placed party or dot does, or the dot would float disconnected from its couple.
+    let needsUnionEdge = false
+    let unionEdgeCenterX: number | undefined
 
-    if (!stacked) {
+    if (manuallyPlaced) {
+      edges.push({
+        id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
+        source: unit.anchor.id,
+        sourceHandle: 'right',
+        target: unit.spouse.id,
+        targetHandle: 'left',
+        type: 'elbowEdge',
+        style: { stroke: color },
+      })
+      unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
+      needsUnionEdge = true
+    } else if (!stacked) {
       // An ordinary, adjacent couple: a plain straight marriage line, and their shared
       // union point sits at the true midpoint between them.
       const [leftId, rightId] = anchorPos.x <= spousePos.x ? [unit.anchor.id, unit.spouse.id] : [unit.spouse.id, unit.anchor.id]
@@ -399,6 +442,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         style: { stroke: color },
       })
       unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
+      needsUnionEdge = !!unionOverride
     } else {
       // A remarried anchor's wives are stacked in one column to their right (see
       // `blockOf`). Every line from the anchor to a wife is pinned (via `centerX`) to
@@ -424,20 +468,33 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       // generation band below.
       const channelX = channelXByWifeId.get(unit.spouse.id)!
       unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
+      needsUnionEdge = true
+      unionEdgeCenterX = unionOverride ? undefined : channelX
+    }
+
+    if (unionOverride) unionAnchorPos = unionOverride
+
+    if (needsUnionEdge) {
       edges.push({
         id: `spouse-to-union-${unit.key}`,
         source: unit.spouse.id,
         sourceHandle: 'right',
-        target: `union-${unit.key}`,
+        target: unionId,
         targetHandle: 'in',
         type: 'elbowEdge',
-        data: { centerX: channelX },
+        data: unionEdgeCenterX !== undefined ? { centerX: unionEdgeCenterX } : undefined,
         style: { stroke: color },
       })
     }
 
-    const unionId = `union-${unit.key}`
-    nodes.push({ id: unionId, type: 'unionNode', position: unionAnchorPos, data: { color }, draggable: false, selectable: false })
+    nodes.push({
+      id: unionId,
+      type: 'unionNode',
+      position: unionAnchorPos,
+      data: { color, spouseId: unit.spouse.id, anchorId: unit.anchor.id },
+      draggable: true,
+      selectable: false,
+    })
     for (const child of unit.children) {
       edges.push({ id: `child-${unionId}-${child.id}`, source: unionId, target: child.id, type: 'smoothstep', style: { stroke: color } })
     }

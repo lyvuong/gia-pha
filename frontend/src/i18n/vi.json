@@ -65,7 +65,9 @@
     "deleteForeverConfirm": "Xóa vĩnh viễn {{name}}? Không thể hoàn tác.",
     "addRelative": "Thêm người thân của {{name}}",
     "addRelativeShort": "Thêm người thân",
-    "chooseRelationship": "Mối quan hệ"
+    "chooseRelationship": "Mối quan hệ",
+    "resetPosition": "Đặt lại vị trí trên cây",
+    "resetUnionPosition": "Đặt lại vị trí điểm nối"
   },
   "relationship": {
     "father": "Cha",
