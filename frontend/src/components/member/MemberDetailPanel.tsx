@@ -74,6 +74,12 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       {bio && <p className="member-bio">{bio}</p>}
 
       <dl>
+        {member.phapDanh && (
+          <>
+            <dt>{t('member.phapDanh')}</dt>
+            <dd>{member.phapDanh}</dd>
+          </>
+        )}
         {member.placeOfBirth && (
           <>
             <dt>{t('member.placeOfBirth')}</dt>

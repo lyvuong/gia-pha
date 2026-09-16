@@ -21,6 +21,7 @@ export interface Story {
 export interface Member {
   id: string
   fullName: string
+  phapDanh: string
   searchKey: string
   photoUrl: string | null
   generation: number

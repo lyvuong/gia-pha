@@ -18,6 +18,7 @@ interface MemberEditFormProps {
 function emptyDraft(overrides?: Partial<NewMember>): NewMember {
   return {
     fullName: '',
+    phapDanh: '',
     photoUrl: null,
     generation: 1,
     birthDate: null,
@@ -46,6 +47,7 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
     member
       ? {
           fullName: member.fullName,
+          phapDanh: member.phapDanh,
           photoUrl: member.photoUrl,
           generation: member.generation,
           birthDate: member.birthDate,
@@ -118,6 +120,14 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
           value={draft.fullName}
           onChange={(e) => updateField('fullName', e.target.value)}
           required
+        />
+      </label>
+
+      <label>
+        {t('member.phapDanh')}
+        <input
+          value={draft.phapDanh}
+          onChange={(e) => updateField('phapDanh', e.target.value)}
         />
       </label>
 

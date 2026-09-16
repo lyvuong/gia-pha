@@ -25,6 +25,7 @@
   },
   "member": {
     "fullName": "Họ và tên",
+    "phapDanh": "Pháp danh",
     "birthDate": "Ngày sinh",
     "deathDate": "Ngày mất",
     "placeOfBirth": "Nơi sinh",
