@@ -20,6 +20,9 @@ function fromDoc(id: string, data: Record<string, unknown>): Member {
   return {
     id,
     fullName: (data.fullName as string) ?? '',
+    birthName: (data.birthName as string) ?? '',
+    aka: (data.aka as string) ?? '',
+    nicknames: (data.nicknames as string) ?? '',
     phapDanh: (data.phapDanh as string) ?? '',
     searchKey: (data.searchKey as string) ?? '',
     photoUrl: (data.photoUrl as string | null) ?? null,

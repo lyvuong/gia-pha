@@ -74,6 +74,24 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       {bio && <p className="member-bio">{bio}</p>}
 
       <dl>
+        {member.birthName && (
+          <>
+            <dt>{t('member.birthName')}</dt>
+            <dd>{member.birthName}</dd>
+          </>
+        )}
+        {member.aka && (
+          <>
+            <dt>{t('member.aka')}</dt>
+            <dd>{member.aka}</dd>
+          </>
+        )}
+        {member.nicknames && (
+          <>
+            <dt>{t('member.nicknames')}</dt>
+            <dd>{member.nicknames}</dd>
+          </>
+        )}
         {member.phapDanh && (
           <>
             <dt>{t('member.phapDanh')}</dt>

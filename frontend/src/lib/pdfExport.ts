@@ -82,6 +82,18 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
       doc.setFont('helvetica', 'normal')
       y += 5
 
+      if (member.birthName) {
+        doc.text(`Tên khai sinh: ${member.birthName}`, MARGIN + 4, y)
+        y += 5
+      }
+      if (member.aka) {
+        doc.text(`AKA: ${member.aka}`, MARGIN + 4, y)
+        y += 5
+      }
+      if (member.nicknames) {
+        doc.text(`Biệt danh: ${member.nicknames}`, MARGIN + 4, y)
+        y += 5
+      }
       if (member.phapDanh) {
         doc.text(`Pháp danh: ${member.phapDanh}`, MARGIN + 4, y)
         y += 5

@@ -26,6 +26,9 @@
   },
   "member": {
     "fullName": "Full name",
+    "birthName": "Birth name",
+    "aka": "AKA",
+    "nicknames": "Nickname(s)",
     "phapDanh": "Dharma name",
     "birthDate": "Date of birth",
     "deathDate": "Date of death",

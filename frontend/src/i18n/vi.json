@@ -26,6 +26,9 @@
   },
   "member": {
     "fullName": "Họ và tên",
+    "birthName": "Tên khai sinh",
+    "aka": "Tên gọi khác",
+    "nicknames": "Biệt danh",
     "phapDanh": "Pháp danh",
     "birthDate": "Ngày sinh",
     "deathDate": "Ngày mất",
