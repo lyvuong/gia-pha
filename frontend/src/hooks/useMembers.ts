@@ -13,17 +13,25 @@ import {
 import { useEffect, useState } from 'react'
 import { db } from '../firebase/config'
 import { normalizeVietnamese } from '../lib/normalizeVietnamese'
-import type { Member, NewMember, Story } from '../types/models'
+import { NAME_LABELS, type Member, type NameEntry, type NewMember, type Story } from '../types/models'
+
+/** Reads members written before `names` became a single array — each name category
+ * used to be its own flat string field. */
+function legacyNames(data: Record<string, unknown>): NameEntry[] {
+  const entries: NameEntry[] = []
+  for (const label of NAME_LABELS) {
+    const value = data[label]
+    if (typeof value === 'string' && value) entries.push({ label, value })
+  }
+  return entries
+}
 
 function fromDoc(id: string, data: Record<string, unknown>): Member {
   const lastEditedAt = data.lastEditedAt as Timestamp | undefined
   return {
     id,
     fullName: (data.fullName as string) ?? '',
-    birthName: (data.birthName as string) ?? '',
-    aka: (data.aka as string) ?? '',
-    nicknames: (data.nicknames as string) ?? '',
-    phapDanh: (data.phapDanh as string) ?? '',
+    names: (data.names as NameEntry[] | undefined) ?? legacyNames(data),
     searchKey: (data.searchKey as string) ?? '',
     photoUrl: (data.photoUrl as string | null) ?? null,
     generation: (data.generation as number) ?? 0,

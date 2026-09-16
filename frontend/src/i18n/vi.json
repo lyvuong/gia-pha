@@ -26,6 +26,7 @@
   },
   "member": {
     "fullName": "Họ và tên",
+    "otherNames": "Tên khác",
     "birthName": "Tên khai sinh",
     "aka": "Tên gọi khác",
     "nicknames": "Biệt danh",

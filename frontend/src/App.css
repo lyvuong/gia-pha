@@ -334,6 +334,28 @@
   margin-bottom: 6px;
 }
 
+.name-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.name-row select {
+  flex: 1 1 100px;
+  min-width: 90px;
+}
+
+.name-row input {
+  flex: 2 1 100px;
+  min-width: 0;
+}
+
+.name-row button {
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
 .relation-field {
   display: flex;
   flex-direction: column;

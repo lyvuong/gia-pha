@@ -18,13 +18,20 @@ export interface Story {
   contributedAt: number
 }
 
+/** The selectable set of "other name" categories a member can have any number of. */
+export type NameLabel = 'birthName' | 'aka' | 'nicknames' | 'phapDanh'
+
+export const NAME_LABELS: NameLabel[] = ['birthName', 'aka', 'nicknames', 'phapDanh']
+
+export interface NameEntry {
+  label: NameLabel
+  value: string
+}
+
 export interface Member {
   id: string
   fullName: string
-  birthName: string
-  aka: string
-  nicknames: string
-  phapDanh: string
+  names: NameEntry[]
   searchKey: string
   photoUrl: string | null
   generation: number

@@ -2,11 +2,18 @@ import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { generateBio } from './generateBio'
 import { vietnameseCollator } from './normalizeVietnamese'
-import type { Member } from '../types/models'
+import type { Member, NameLabel } from '../types/models'
 
 const PAGE_WIDTH = 210 // A4 mm
 const PAGE_HEIGHT = 297
 const MARGIN = 15
+
+const NAME_LABEL_TEXT: Record<NameLabel, string> = {
+  birthName: 'Tên khai sinh',
+  aka: 'AKA',
+  nicknames: 'Biệt danh',
+  phapDanh: 'Pháp danh',
+}
 
 function mapsUrl(text: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`
@@ -82,20 +89,9 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
       doc.setFont('helvetica', 'normal')
       y += 5
 
-      if (member.birthName) {
-        doc.text(`Tên khai sinh: ${member.birthName}`, MARGIN + 4, y)
-        y += 5
-      }
-      if (member.aka) {
-        doc.text(`AKA: ${member.aka}`, MARGIN + 4, y)
-        y += 5
-      }
-      if (member.nicknames) {
-        doc.text(`Biệt danh: ${member.nicknames}`, MARGIN + 4, y)
-        y += 5
-      }
-      if (member.phapDanh) {
-        doc.text(`Pháp danh: ${member.phapDanh}`, MARGIN + 4, y)
+      for (const entry of member.names) {
+        if (!entry.value) continue
+        doc.text(`${NAME_LABEL_TEXT[entry.label]}: ${entry.value}`, MARGIN + 4, y)
         y += 5
       }
       if (member.placeOfBirth) {

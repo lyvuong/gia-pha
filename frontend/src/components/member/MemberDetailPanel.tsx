@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
@@ -74,30 +74,12 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       {bio && <p className="member-bio">{bio}</p>}
 
       <dl>
-        {member.birthName && (
-          <>
-            <dt>{t('member.birthName')}</dt>
-            <dd>{member.birthName}</dd>
-          </>
-        )}
-        {member.aka && (
-          <>
-            <dt>{t('member.aka')}</dt>
-            <dd>{member.aka}</dd>
-          </>
-        )}
-        {member.nicknames && (
-          <>
-            <dt>{t('member.nicknames')}</dt>
-            <dd>{member.nicknames}</dd>
-          </>
-        )}
-        {member.phapDanh && (
-          <>
-            <dt>{t('member.phapDanh')}</dt>
-            <dd>{member.phapDanh}</dd>
-          </>
-        )}
+        {member.names.filter((n) => n.value).map((n, i) => (
+          <Fragment key={i}>
+            <dt>{t(`member.${n.label}`)}</dt>
+            <dd>{n.value}</dd>
+          </Fragment>
+        ))}
         {member.placeOfBirth && (
           <>
             <dt>{t('member.placeOfBirth')}</dt>

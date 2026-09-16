@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addMember, updateMember } from '../../hooks/useMembers'
-import type { Education, Member, NewMember } from '../../types/models'
+import { NAME_LABELS, type Education, type Member, type NameEntry, type NewMember } from '../../types/models'
 import { PhotoUploader } from './PhotoUploader'
 
 interface MemberEditFormProps {
@@ -18,10 +18,7 @@ interface MemberEditFormProps {
 function emptyDraft(overrides?: Partial<NewMember>): NewMember {
   return {
     fullName: '',
-    birthName: '',
-    aka: '',
-    nicknames: '',
-    phapDanh: '',
+    names: [],
     photoUrl: null,
     generation: 1,
     birthDate: null,
@@ -47,10 +44,7 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
     member
       ? {
           fullName: member.fullName,
-          birthName: member.birthName,
-          aka: member.aka,
-          nicknames: member.nicknames,
-          phapDanh: member.phapDanh,
+          names: member.names,
           photoUrl: member.photoUrl,
           generation: member.generation,
           birthDate: member.birthDate,
@@ -89,6 +83,21 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
 
   function removeRelation(field: 'parentIds' | 'spouseIds', id: string) {
     setDraft((d) => ({ ...d, [field]: d[field].filter((existingId) => existingId !== id) }))
+  }
+
+  function updateNameRow(index: number, patch: Partial<NameEntry>) {
+    setDraft((d) => ({
+      ...d,
+      names: d.names.map((n, i) => (i === index ? { ...n, ...patch } : n)),
+    }))
+  }
+
+  function addNameRow() {
+    setDraft((d) => ({ ...d, names: [...d.names, { label: NAME_LABELS[0], value: '' }] }))
+  }
+
+  function removeNameRow(index: number) {
+    setDraft((d) => ({ ...d, names: d.names.filter((_, i) => i !== index) }))
   }
 
   function updateEducationRow(index: number, patch: Partial<Education>) {
@@ -141,37 +150,29 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
         />
       </label>
 
-      <label>
-        {t('member.birthName')}
-        <input
-          value={draft.birthName}
-          onChange={(e) => updateField('birthName', e.target.value)}
-        />
-      </label>
-
-      <label>
-        {t('member.aka')}
-        <input
-          value={draft.aka}
-          onChange={(e) => updateField('aka', e.target.value)}
-        />
-      </label>
-
-      <label>
-        {t('member.nicknames')}
-        <input
-          value={draft.nicknames}
-          onChange={(e) => updateField('nicknames', e.target.value)}
-        />
-      </label>
-
-      <label>
-        {t('member.phapDanh')}
-        <input
-          value={draft.phapDanh}
-          onChange={(e) => updateField('phapDanh', e.target.value)}
-        />
-      </label>
+      <fieldset>
+        <legend>{t('member.otherNames')}</legend>
+        {draft.names.map((entry, i) => (
+          <div key={i} className="name-row">
+            <select
+              value={entry.label}
+              onChange={(e) => updateNameRow(i, { label: e.target.value as NameEntry['label'] })}
+            >
+              {NAME_LABELS.map((label) => (
+                <option key={label} value={label}>{t(`member.${label}`)}</option>
+              ))}
+            </select>
+            <input
+              value={entry.value}
+              onChange={(e) => updateNameRow(i, { value: e.target.value })}
+            />
+            <button type="button" onClick={() => removeNameRow(i)}>
+              {t('member.delete')}
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={addNameRow}>+ {t('member.otherNames')}</button>
+      </fieldset>
 
       {member && (
         <PhotoUploader
