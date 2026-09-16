@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isMember(giaPhaId, uid) {
+      let giaPha = firestore.get(/databases/(default)/documents/giaPha/$(giaPhaId)).data;
+      return uid in giaPha.editors || uid == giaPha.ownerUid;
+    }
+
+    match /giaPha/{giaPhaId}/members/{memberId}/{fileName} {
+      allow read: if true; // photos are public-readable via their URL
+      allow write: if request.auth != null
+                   && isMember(giaPhaId, request.auth.uid)
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

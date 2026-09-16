@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isMember(giaPhaId, uid) {
+      let giaPha = get(/databases/$(database)/documents/giaPha/$(giaPhaId)).data;
+      return uid in giaPha.editors || uid == giaPha.ownerUid;
+    }
+
+    match /giaPha/{giaPhaId} {
+      allow read: if request.auth != null &&
+        (request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid);
+
+      // Owner creates the tree with themselves as the sole initial editor.
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.editors == [request.auth.uid];
+
+      allow update: if request.auth != null && (
+        // An existing member updates tree metadata (e.g. renaming) without touching `editors`.
+        ((request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid)
+          && request.resource.data.editors == resource.data.editors) ||
+        // A signed-in, not-yet-member user joins via invite link: appends exactly their own
+        // uid to `editors` and changes nothing else. This is the one case where a non-member
+        // is allowed to write, since membership itself doesn't exist yet (chicken-and-egg).
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
+          && request.resource.data.editors == resource.data.editors.concat([request.auth.uid]))
+      );
+
+      allow delete: if false;
+
+      match /members/{memberId} {
+        allow read: if request.auth != null && isMember(giaPhaId, request.auth.uid);
+
+        allow create: if request.auth != null
+          && isMember(giaPhaId, request.auth.uid)
+          && request.resource.data.lastEditedBy == request.auth.uid;
+
+        allow update: if request.auth != null && isMember(giaPhaId, request.auth.uid) && (
+          // Normal field edits must be attributed to the editor making them.
+          request.resource.data.lastEditedBy == request.auth.uid ||
+          // Story additions/removals are additive per-contributor entries (see spec §9),
+          // not a value being overwritten, so they don't require matching lastEditedBy.
+          // NOTE: this only guarantees *some* current member modified `stories` — enforcing
+          // "only the original contributor or the owner may delete a given entry" at the
+          // rules level would need per-array-element diffing that Firestore rules can't do
+          // cleanly. That check is enforced client-side only (accepted v1 gap; a full fix
+          // would need Cloud Functions, which is out of scope per spec §16).
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stories'])
+        );
+
+        allow delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
+      }
+
+      match /editorProfiles/{uid} {
+        allow read: if request.auth != null && isMember(giaPhaId, request.auth.uid);
+        allow write: if request.auth != null && request.auth.uid == uid && isMember(giaPhaId, request.auth.uid);
+      }
+    }
+
+    // Narrow, denormalized doc (id = invite code) used for the public WhatsApp-preview
+    // lookup in functions/join/[code].js — exposes only { giaPhaId, name }, never the
+    // real giaPha document, and only via a direct doc-id get (never a query/list).
+    match /inviteCodes/{code} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null
+        && request.auth.uid == get(/databases/$(database)/documents/giaPha/$(request.resource.data.giaPhaId)).data.ownerUid;
+      allow update: if request.auth != null
+        && request.auth.uid == get(/databases/$(database)/documents/giaPha/$(resource.data.giaPhaId)).data.ownerUid;
+      allow delete: if false;
+    }
+  }
+}

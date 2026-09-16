@@ -75,11 +75,38 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       }
     }
   }
-  for (const [a, b] of primaryPairs.values()) {
-    g.setEdge(a, b, { minlen: 0, weight: 1000 })
-  }
+  // Note: dagre's own same-rank trick (`minlen: 0` edges) crashes in @dagrejs/dagre when a
+  // rank has no other incoming structure, so spouse-adjacency is instead enforced below as a
+  // post-processing reorder pass, after dagre's crossing-minimized x-order is computed from
+  // parent-child edges alone.
 
   dagre.layout(g)
+
+  const partnerOf = new Map<string, string>()
+  for (const [a, b] of primaryPairs.values()) {
+    partnerOf.set(a, b)
+    partnerOf.set(b, a)
+  }
+
+  /** Re-threads a dagre-x-sorted row so each primary spouse pair ends up adjacent. */
+  function withSpousesAdjacent(sorted: Member[]): Member[] {
+    const result: Member[] = []
+    const placed = new Set<string>()
+    for (const member of sorted) {
+      if (placed.has(member.id)) continue
+      result.push(member)
+      placed.add(member.id)
+      const partnerId = partnerOf.get(member.id)
+      if (partnerId && !placed.has(partnerId)) {
+        const partner = sorted.find((x) => x.id === partnerId)
+        if (partner) {
+          result.push(partner)
+          placed.add(partnerId)
+        }
+      }
+    }
+    return result
+  }
 
   const minGeneration = Math.min(...members.map((m) => m.generation))
   const byGeneration = new Map<number, Member[]>()
@@ -92,11 +119,12 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   const positions = new Map<string, { x: number; y: number }>()
   for (const [generation, list] of byGeneration.entries()) {
     const y = (generation - minGeneration) * ROW_HEIGHT
-    const sorted = [...list].sort((a, b) => {
+    const sortedByDagreX = [...list].sort((a, b) => {
       const ax = g.node(a.id)?.x ?? 0
       const bx = g.node(b.id)?.x ?? 0
       return ax - bx
     })
+    const sorted = withSpousesAdjacent(sortedByDagreX)
     let cursorX = 0
     for (const m of sorted) {
       positions.set(m.id, { x: cursorX, y })

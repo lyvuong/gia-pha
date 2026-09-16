@@ -1,0 +1,7 @@
+name = "gia-pha"
+compatibility_date = "2026-09-15"
+pages_build_output_dir = "frontend/dist"
+
+[vars]
+FIREBASE_PROJECT_ID = "your-firebase-project-id"
+APP_ORIGIN = "https://gia-pha.pages.dev"
