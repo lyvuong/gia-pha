@@ -73,8 +73,13 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
   // for a small tree) can't be confused for one another, and so a parent can't
   // accidentally be selected as a spouse or vice versa.
   const childIds = new Set(member ? members.filter((m) => m.parentIds.includes(member.id)).map((m) => m.id) : [])
-  const parentCandidates = otherMembers.filter((m) => !draft.spouseIds.includes(m.id) && !childIds.has(m.id))
-  const spouseCandidates = otherMembers.filter((m) => !draft.parentIds.includes(m.id) && !childIds.has(m.id))
+  // A person has exactly 2 biological parents, so once 2 are picked the field is full —
+  // stops the exact mistake that once linked a child to 3 of their father's wives at once.
+  const parentCandidates =
+    draft.parentIds.length >= 2
+      ? []
+      : otherMembers.filter((m) => !draft.spouseIds.includes(m.id) && !childIds.has(m.id) && !draft.parentIds.includes(m.id))
+  const spouseCandidates = otherMembers.filter((m) => !draft.parentIds.includes(m.id) && !childIds.has(m.id) && !draft.spouseIds.includes(m.id))
 
   function updateField<K extends keyof NewMember>(key: K, value: NewMember[K]) {
     setDraft((d) => ({ ...d, [key]: value }))

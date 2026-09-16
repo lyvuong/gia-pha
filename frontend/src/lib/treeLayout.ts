@@ -216,6 +216,30 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return new Map(row.map((m) => [m.id, find(m.id)]))
   }
 
+  /** Regroups a dagre-x-sorted row so every family block (see `clusterKeysFor`) sits
+   * together as one contiguous run, ordered left-to-right by where dagre placed its
+   * earliest member. Without this, a block with only one member (e.g. a single child
+   * from a second marriage) can land wedged inside an unrelated, larger sibling group
+   * purely because that's where dagre's crossing-minimization happened to put it —
+   * which no amount of extra spacing or divider lines can make unambiguous, since the
+   * member would still visually sit *between* two unrelated siblings. */
+  function orderRowByCluster(sortedByDagreX: Member[]): Member[] {
+    const clusterOf = clusterKeysFor(sortedByDagreX)
+    const dagreIndex = new Map(sortedByDagreX.map((m, i) => [m.id, i]))
+
+    const clusters = new Map<string, Member[]>()
+    for (const m of sortedByDagreX) {
+      const key = clusterOf.get(m.id)!
+      clusters.set(key, [...(clusters.get(key) ?? []), m])
+    }
+
+    const orderedClusters = [...clusters.values()].sort(
+      (a, b) => Math.min(...a.map((m) => dagreIndex.get(m.id)!)) - Math.min(...b.map((m) => dagreIndex.get(m.id)!)),
+    )
+
+    return orderedClusters.flatMap((cluster) => withSpousesAdjacent(orderSiblingsByBirth(cluster)))
+  }
+
   const minGeneration = Math.min(...members.map((m) => m.generation))
   const byGeneration = new Map<number, Member[]>()
   for (const m of members) {
@@ -237,7 +261,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       const bx = g.node(b.id)?.x ?? 0
       return ax - bx
     })
-    const sorted = withSpousesAdjacent(orderSiblingsByBirth(sortedByDagreX))
+    const sorted = orderRowByCluster(sortedByDagreX)
     const clusterOf = clusterKeysFor(sorted)
     const gaps = sorted.slice(1).map((m, i) => (clusterOf.get(sorted[i].id) === clusterOf.get(m.id) ? HORIZONTAL_GAP : GROUP_GAP))
     rowMembers.set(generation, sorted)
