@@ -1,6 +1,8 @@
 import type { ConfirmationResult } from 'firebase/auth'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Logo } from '../components/common/Logo'
+import { ThemeToggle } from '../components/common/ThemeToggle'
 import { useAuth } from '../context/AuthProvider'
 
 const RECAPTCHA_CONTAINER_ID = 'recaptcha-container'
@@ -56,6 +58,10 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="page-theme-toggle">
+        <ThemeToggle />
+      </div>
+      <Logo size={72} />
       <h1>{t('auth.signInTitle')}</h1>
 
       <section className="phone-signin">

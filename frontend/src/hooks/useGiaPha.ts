@@ -104,3 +104,10 @@ export async function joinGiaPha(giaPhaId: string, uid: string): Promise<void> {
     editors: arrayUnion(uid),
   })
 }
+
+/** Renames the tree, keeping the denormalized `inviteCodes/{code}` doc (used for the
+ * public join-link preview) in sync so it doesn't show a stale name. */
+export async function updateGiaPhaName(giaPha: GiaPha, name: string): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPha.id), { name })
+  await updateDoc(doc(db, 'inviteCodes', giaPha.inviteCode), { name })
+}

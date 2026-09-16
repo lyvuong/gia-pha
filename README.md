@@ -82,6 +82,20 @@ The join-preview lookup needs no secrets — it reads the public
 `inviteCodes/{code}` Firestore doc over the plain REST API, which
 `firestore.rules` scopes to a `get`-only, `list`-denied public read.
 
+## Branding / icons
+
+`frontend/public/icons/` holds only the final, served assets (favicons, apple-touch
+icons, PWA icons, and `logo-mark.png` — a transparent cutout of the crane emblem used
+in-app by `<Logo />`). The high-res masters they're generated from live outside
+`public/` in `frontend/icon-sources/` (`icon-source.png`, full badge on its cream card;
+`icon-maskable-source.png`, the same badge scaled down onto a cream full-bleed square
+for the PWA maskable-icon safe zone) — keeping them out of `public/` matters because
+`vite-plugin-pwa`'s service-worker precache globs everything under `public/`, and these
+masters are multi-hundred-KB each with nothing to gain from being cached client-side.
+If the logo ever changes, regenerate every served size from a new master with
+`System.Drawing` (PowerShell, no extra tooling needed) rather than hand-editing the
+PNGs.
+
 ## Known v1 simplifications
 
 These are intentional, called out so they're not mistaken for bugs:

@@ -66,9 +66,12 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create: if request.auth != null
-        && request.auth.uid == get(/databases/$(database)/documents/giaPha/$(request.resource.data.giaPhaId)).data.ownerUid;
+        && isMember(request.resource.data.giaPhaId, request.auth.uid);
+      // Kept in sync by any current member, mirroring giaPha's own rename permission
+      // (renaming a tree updates both docs in the same client-side call).
       allow update: if request.auth != null
-        && request.auth.uid == get(/databases/$(database)/documents/giaPha/$(resource.data.giaPhaId)).data.ownerUid;
+        && isMember(resource.data.giaPhaId, request.auth.uid)
+        && request.resource.data.giaPhaId == resource.data.giaPhaId;
       allow delete: if false;
     }
   }

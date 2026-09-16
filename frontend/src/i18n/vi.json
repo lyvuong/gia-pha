@@ -14,6 +14,7 @@
   },
   "tree": {
     "title": "Cây gia phả",
+    "renameHint": "Nhấn để đổi tên",
     "addMember": "Thêm thành viên",
     "exportPdf": "Xuất PDF",
     "search": "Tìm thành viên...",
@@ -74,6 +75,7 @@
   },
   "common": {
     "loading": "Đang tải...",
-    "language": "Ngôn ngữ"
+    "language": "Ngôn ngữ",
+    "theme": "Chuyển giao diện sáng/tối"
   }
 }

@@ -4,12 +4,29 @@
   --color-gold: #F0CD82;
   --color-gold-dark: #DEB25F;
   --color-text: #2A2323;
+  --color-text-muted: #777777;
+  --color-text-subtle: #999999;
   --color-bg: #FAF7F2;
   --color-panel-bg: #FFFFFF;
   --color-border: #E5DED4;
+  --color-shadow: rgba(0, 0, 0, 0.08);
+  --color-error: #B3261E;
 
   font-family: 'Inter', 'Noto Sans', system-ui, sans-serif;
   color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --color-text: #EDE6E0;
+  --color-text-muted: #B8ACA4;
+  --color-text-subtle: #8C8079;
+  --color-bg: #1B1512;
+  --color-panel-bg: #241D19;
+  --color-border: #3A2E28;
+  --color-shadow: rgba(0, 0, 0, 0.35);
+  --color-error: #E5695F;
+
+  color-scheme: dark;
 }
 
 * {
@@ -48,6 +65,13 @@ button.story-delete {
   color: var(--color-maroon);
 }
 
+/* Header buttons sit on the maroon bar, not a panel, so they need light text/border
+   instead of the maroon-on-white styling those classes use elsewhere. */
+.tree-page-header button.language-toggle {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 input, textarea, select {
   font-family: inherit;
   border: 1px solid var(--color-border);
@@ -57,7 +81,7 @@ input, textarea, select {
 }
 
 .error-text {
-  color: #B3261E;
+  color: var(--color-error);
 }
 
 .page-status {
