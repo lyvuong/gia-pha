@@ -1,0 +1,166 @@
+import dagre from '@dagrejs/dagre'
+import type { Edge, Node } from '@xyflow/react'
+import type { Member } from '../types/models'
+
+export const NODE_WIDTH = 200
+export const NODE_HEIGHT = 96
+const HORIZONTAL_GAP = 40
+const ROW_HEIGHT = 180
+
+export interface TreeNodeData extends Record<string, unknown> {
+  member?: Member
+}
+
+export type TreeNode = Node<TreeNodeData>
+export type TreeEdge = Edge
+
+interface LayoutResult {
+  nodes: TreeNode[]
+  edges: TreeEdge[]
+}
+
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join('|')
+}
+
+/**
+ * Lays out the family tree with react-flow + dagre.
+ *
+ * Row (y) position is authoritative from `member.generation`, not from
+ * dagre's computed rank, so rows stay correct even if some parent/child
+ * links are missing or inconsistent. Dagre's crossing-minimized x-ordering
+ * is kept, then re-packed with fixed spacing per generation to avoid
+ * overlaps.
+ *
+ * Only the first entry in `spouseIds` is treated as the primary lateral
+ * pairing (used for x-adjacency and centering children below a couple) —
+ * additional spouses (remarriage) are rendered as plain marriage lines
+ * without a shared union anchor. This is an accepted v1 simplification.
+ */
+export function computeTreeLayout(members: Member[]): LayoutResult {
+  if (members.length === 0) return { nodes: [], edges: [] }
+
+  const byId = new Map(members.map((m) => [m.id, m]))
+
+  const primaryPairs = new Map<string, [string, string]>()
+  for (const m of members) {
+    const primaryId = m.spouseIds[0]
+    if (primaryId && byId.has(primaryId)) {
+      const key = pairKey(m.id, primaryId)
+      if (!primaryPairs.has(key)) primaryPairs.set(key, [m.id, primaryId])
+    }
+  }
+
+  const allPairs = new Map<string, [string, string]>()
+  for (const m of members) {
+    for (const s of m.spouseIds) {
+      if (byId.has(s)) {
+        const key = pairKey(m.id, s)
+        if (!allPairs.has(key)) allPairs.set(key, [m.id, s])
+      }
+    }
+  }
+
+  const g = new dagre.graphlib.Graph()
+  g.setGraph({ rankdir: 'TB', nodesep: HORIZONTAL_GAP, ranksep: ROW_HEIGHT - NODE_HEIGHT })
+  g.setDefaultEdgeLabel(() => ({}))
+
+  for (const m of members) {
+    g.setNode(m.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
+  }
+  for (const m of members) {
+    for (const parentId of m.parentIds) {
+      if (byId.has(parentId)) {
+        g.setEdge(parentId, m.id, { minlen: 1, weight: 1 })
+      }
+    }
+  }
+  for (const [a, b] of primaryPairs.values()) {
+    g.setEdge(a, b, { minlen: 0, weight: 1000 })
+  }
+
+  dagre.layout(g)
+
+  const minGeneration = Math.min(...members.map((m) => m.generation))
+  const byGeneration = new Map<number, Member[]>()
+  for (const m of members) {
+    const list = byGeneration.get(m.generation) ?? []
+    list.push(m)
+    byGeneration.set(m.generation, list)
+  }
+
+  const positions = new Map<string, { x: number; y: number }>()
+  for (const [generation, list] of byGeneration.entries()) {
+    const y = (generation - minGeneration) * ROW_HEIGHT
+    const sorted = [...list].sort((a, b) => {
+      const ax = g.node(a.id)?.x ?? 0
+      const bx = g.node(b.id)?.x ?? 0
+      return ax - bx
+    })
+    let cursorX = 0
+    for (const m of sorted) {
+      positions.set(m.id, { x: cursorX, y })
+      cursorX += NODE_WIDTH + HORIZONTAL_GAP
+    }
+  }
+
+  const nodes: TreeNode[] = members.map((m) => ({
+    id: m.id,
+    type: 'memberNode',
+    position: positions.get(m.id) ?? { x: 0, y: 0 },
+    data: { member: m },
+  }))
+
+  const edges: TreeEdge[] = []
+  const unionNodeIds = new Map<string, string>()
+
+  for (const [key, [a, b]] of primaryPairs.entries()) {
+    const posA = positions.get(a)
+    const posB = positions.get(b)
+    if (!posA || !posB) continue
+    const unionId = `union-${key}`
+    unionNodeIds.set(key, unionId)
+    nodes.push({
+      id: unionId,
+      type: 'unionNode',
+      position: {
+        x: (posA.x + posB.x) / 2 + NODE_WIDTH / 2,
+        y: (posA.y + posB.y) / 2 + NODE_HEIGHT / 2,
+      },
+      data: {},
+      draggable: false,
+      selectable: false,
+    })
+  }
+
+  for (const [, [a, b]] of allPairs.entries()) {
+    const posA = positions.get(a)
+    const posB = positions.get(b)
+    const [leftId, rightId] = posA && posB && posA.x <= posB.x ? [a, b] : [b, a]
+    edges.push({
+      id: `spouse-${a}-${b}`,
+      source: leftId,
+      sourceHandle: 'right',
+      target: rightId,
+      targetHandle: 'left',
+      type: 'spouseEdge',
+    })
+  }
+
+  for (const m of members) {
+    const validParents = m.parentIds.filter((p) => byId.has(p))
+    if (validParents.length === 2) {
+      const key = pairKey(validParents[0], validParents[1])
+      const unionId = unionNodeIds.get(key)
+      if (unionId) {
+        edges.push({ id: `child-${unionId}-${m.id}`, source: unionId, target: m.id, type: 'smoothstep' })
+        continue
+      }
+    }
+    for (const p of validParents) {
+      edges.push({ id: `child-${p}-${m.id}`, source: p, target: m.id, type: 'smoothstep' })
+    }
+  }
+
+  return { nodes, edges }
+}

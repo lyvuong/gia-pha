@@ -1,0 +1,65 @@
+{
+  "app": {
+    "name": "Gia Phả"
+  },
+  "auth": {
+    "signInTitle": "Sign in to Gia Phả",
+    "signInWithPhone": "Continue with phone number",
+    "signInWithGoogle": "Continue with Google",
+    "phoneNumberPlaceholder": "Phone number",
+    "sendCode": "Send code",
+    "verificationCodePlaceholder": "Verification code",
+    "verifyCode": "Verify",
+    "signOut": "Sign out"
+  },
+  "tree": {
+    "title": "Family Tree",
+    "addMember": "Add member",
+    "exportPdf": "Export PDF",
+    "search": "Search members...",
+    "generation": "Generation {{n}}",
+    "createTitle": "Create your gia phả",
+    "createNamePlaceholder": "Family tree name, e.g. \"Gia phả họ Nguyễn\"",
+    "createButton": "Create",
+    "noTreeYet": "You don't have a family tree yet."
+  },
+  "member": {
+    "fullName": "Full name",
+    "birthDate": "Date of birth",
+    "deathDate": "Date of death",
+    "placeOfBirth": "Place of birth",
+    "queQuan": "Ancestral hometown",
+    "occupation": "Occupation",
+    "notes": "Notes",
+    "education": "Education",
+    "achievements": "Achievements",
+    "bio": "Biography",
+    "bioOverridePlaceholder": "Write a custom biography, or leave blank to auto-generate one",
+    "resetBio": "Reset to auto-generated",
+    "lastEditedBy": "Last edited by {{name}} · {{date}}",
+    "photo": "Photo",
+    "parents": "Parents",
+    "spouses": "Spouses",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "stories": {
+    "title": "Stories & Memories",
+    "placeholder": "Share a memory or story about {{name}}...",
+    "add": "Add story",
+    "contributedBy": "Told by {{name}} · {{date}}",
+    "delete": "Delete"
+  },
+  "join": {
+    "title": "Join {{name}}?",
+    "confirm": "Join",
+    "loading": "Loading invite...",
+    "notFound": "This invite link is invalid or has expired."
+  },
+  "common": {
+    "loading": "Loading...",
+    "language": "Language"
+  }
+}

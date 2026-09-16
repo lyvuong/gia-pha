@@ -1,0 +1,65 @@
+{
+  "app": {
+    "name": "Gia Phả"
+  },
+  "auth": {
+    "signInTitle": "Đăng nhập vào Gia Phả",
+    "signInWithPhone": "Tiếp tục bằng số điện thoại",
+    "signInWithGoogle": "Tiếp tục bằng Google",
+    "phoneNumberPlaceholder": "Số điện thoại",
+    "sendCode": "Gửi mã",
+    "verificationCodePlaceholder": "Mã xác nhận",
+    "verifyCode": "Xác nhận",
+    "signOut": "Đăng xuất"
+  },
+  "tree": {
+    "title": "Cây gia phả",
+    "addMember": "Thêm thành viên",
+    "exportPdf": "Xuất PDF",
+    "search": "Tìm thành viên...",
+    "generation": "Thế hệ {{n}}",
+    "createTitle": "Tạo gia phả của bạn",
+    "createNamePlaceholder": "Tên gia phả, ví dụ \"Gia phả họ Nguyễn\"",
+    "createButton": "Tạo",
+    "noTreeYet": "Bạn chưa có cây gia phả nào."
+  },
+  "member": {
+    "fullName": "Họ và tên",
+    "birthDate": "Ngày sinh",
+    "deathDate": "Ngày mất",
+    "placeOfBirth": "Nơi sinh",
+    "queQuan": "Quê quán",
+    "occupation": "Nghề nghiệp",
+    "notes": "Ghi chú",
+    "education": "Học vấn",
+    "achievements": "Thành tựu",
+    "bio": "Tiểu sử",
+    "bioOverridePlaceholder": "Viết tiểu sử tùy chỉnh, hoặc để trống để tự động tạo",
+    "resetBio": "Đặt lại về tự động tạo",
+    "lastEditedBy": "Chỉnh sửa lần cuối bởi {{name}} · {{date}}",
+    "photo": "Ảnh",
+    "parents": "Cha mẹ",
+    "spouses": "Vợ/Chồng",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa"
+  },
+  "stories": {
+    "title": "Kỷ niệm & câu chuyện",
+    "placeholder": "Chia sẻ một kỷ niệm hoặc câu chuyện về {{name}}...",
+    "add": "Thêm câu chuyện",
+    "contributedBy": "Kể bởi {{name}} · {{date}}",
+    "delete": "Xóa"
+  },
+  "join": {
+    "title": "Tham gia {{name}}?",
+    "confirm": "Tham gia",
+    "loading": "Đang tải lời mời...",
+    "notFound": "Liên kết mời không hợp lệ hoặc đã hết hạn."
+  },
+  "common": {
+    "loading": "Đang tải...",
+    "language": "Ngôn ngữ"
+  }
+}
