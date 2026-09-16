@@ -6,6 +6,7 @@ import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
 import { deleteMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
+import { AddRelativeFlow } from './AddRelativeFlow'
 import { MemberEditForm } from './MemberEditForm'
 import { StoriesList } from './StoriesList'
 
@@ -22,6 +23,7 @@ interface MemberDetailPanelProps {
 export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted }: MemberDetailPanelProps) {
   const { t, i18n } = useTranslation()
   const [editing, setEditing] = useState(false)
+  const [addingRelative, setAddingRelative] = useState(false)
 
   if (editing) {
     return (
@@ -33,6 +35,20 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
           currentUid={currentUid}
           onSaved={() => setEditing(false)}
           onCancel={() => setEditing(false)}
+        />
+      </div>
+    )
+  }
+
+  if (addingRelative) {
+    return (
+      <div className="member-detail-panel">
+        <AddRelativeFlow
+          giaPhaId={giaPha.id}
+          anchor={member}
+          members={members}
+          currentUid={currentUid}
+          onDone={() => setAddingRelative(false)}
         />
       </div>
     )
@@ -86,6 +102,7 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
 
       <div className="member-detail-actions">
         <button type="button" onClick={() => setEditing(true)}>{t('member.edit')}</button>
+        <button type="button" onClick={() => setAddingRelative(true)}>{t('member.addRelativeShort')}</button>
         <button type="button" onClick={handleDelete}>{t('member.delete')}</button>
       </div>
 

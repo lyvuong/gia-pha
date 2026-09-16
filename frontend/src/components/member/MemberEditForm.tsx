@@ -9,15 +9,17 @@ interface MemberEditFormProps {
   member: Member | null
   members: Member[]
   currentUid: string
+  /** Pre-fills fields (e.g. generation/parentIds/spouseIds) when adding via a relationship picker. Ignored if `member` is set. */
+  initialDraft?: Partial<NewMember>
   onSaved: (memberId: string) => void
   onCancel: () => void
 }
 
-function emptyDraft(generation: number): NewMember {
+function emptyDraft(overrides?: Partial<NewMember>): NewMember {
   return {
     fullName: '',
     photoUrl: null,
-    generation,
+    generation: 1,
     birthDate: null,
     deathDate: null,
     placeOfBirth: '',
@@ -30,6 +32,7 @@ function emptyDraft(generation: number): NewMember {
     achievements: [],
     stories: [],
     bioOverride: null,
+    ...overrides,
   }
 }
 
@@ -37,7 +40,7 @@ function selectedOptions(select: HTMLSelectElement): string[] {
   return Array.from(select.selectedOptions).map((o) => o.value)
 }
 
-export function MemberEditForm({ giaPhaId, member, members, currentUid, onSaved, onCancel }: MemberEditFormProps) {
+export function MemberEditForm({ giaPhaId, member, members, currentUid, initialDraft, onSaved, onCancel }: MemberEditFormProps) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState<NewMember>(
     member
@@ -58,7 +61,7 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, onSaved,
           stories: member.stories,
           bioOverride: member.bioOverride,
         }
-      : emptyDraft(1),
+      : emptyDraft(initialDraft),
   )
   const [saving, setSaving] = useState(false)
 

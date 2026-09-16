@@ -299,3 +299,17 @@
 .photo-uploader-label {
   font-size: 13px;
 }
+
+.add-relative-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.add-relative-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}

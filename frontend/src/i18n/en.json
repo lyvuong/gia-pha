@@ -43,7 +43,20 @@
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "addRelative": "Add a relative of {{name}}",
+    "addRelativeShort": "Add relative",
+    "chooseRelationship": "Relationship"
+  },
+  "relationship": {
+    "father": "Father",
+    "mother": "Mother",
+    "husband": "Husband",
+    "wife": "Wife",
+    "son": "Son",
+    "daughter": "Daughter",
+    "brother": "Brother",
+    "sister": "Sister"
   },
   "stories": {
     "title": "Stories & Memories",

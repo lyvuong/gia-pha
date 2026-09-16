@@ -43,7 +43,20 @@
     "save": "Lưu",
     "cancel": "Hủy",
     "edit": "Chỉnh sửa",
-    "delete": "Xóa"
+    "delete": "Xóa",
+    "addRelative": "Thêm người thân của {{name}}",
+    "addRelativeShort": "Thêm người thân",
+    "chooseRelationship": "Mối quan hệ"
+  },
+  "relationship": {
+    "father": "Cha",
+    "mother": "Mẹ",
+    "husband": "Chồng",
+    "wife": "Vợ",
+    "son": "Con trai",
+    "daughter": "Con gái",
+    "brother": "Anh/Em trai",
+    "sister": "Chị/Em gái"
   },
   "stories": {
     "title": "Kỷ niệm & câu chuyện",
