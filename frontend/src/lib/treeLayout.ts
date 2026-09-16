@@ -484,43 +484,46 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         needsUnionEdge = true
         unionEdgeCenterX = unionOverride ? undefined : channelX
       } else {
-        // No children to route through a channel, so there's nothing to detour for —
-        // put the union dot right on the marriage spine, same as an ordinary couple,
-        // instead of a dangling line down to an otherwise-unused channel hub.
-        unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
-        needsUnionEdge = !!unionOverride
+        // No children, so no union dot will be rendered at all (see below) — this value
+        // is never used, just here to satisfy definite assignment.
+        unionAnchorPos = spousePos
       }
     }
 
     if (unionOverride) unionAnchorPos = unionOverride
 
-    if (needsUnionEdge) {
-      edges.push({
-        id: `spouse-to-union-${unit.key}`,
-        source: unit.spouse.id,
-        // The stacked, non-overridden case always resolves to 'right' here too (the
-        // channel is by construction to the wife's right), so this is safe for every
-        // branch — it just also stops a manually placed/dragged dot on the *other* side
-        // from making the line cut back across the spouse's own box to reach it.
-        sourceHandle: exitSide(spousePos.x, unionAnchorPos.x),
-        target: unionId,
-        targetHandle: 'in',
-        type: 'elbowEdge',
-        data: unionEdgeCenterX !== undefined ? { centerX: unionEdgeCenterX } : undefined,
-        style: { stroke: color },
-      })
-    }
+    // A couple with no children has nothing for a union dot to connect to — the marriage
+    // line above already shows they're a couple, so skip the dot (and any line to it)
+    // entirely rather than leaving a connector that dangles or floats with no purpose.
+    if (unit.children.length > 0) {
+      if (needsUnionEdge) {
+        edges.push({
+          id: `spouse-to-union-${unit.key}`,
+          source: unit.spouse.id,
+          // The stacked, non-overridden case always resolves to 'right' here too (the
+          // channel is by construction to the wife's right), so this is safe for every
+          // branch — it just also stops a manually placed/dragged dot on the *other* side
+          // from making the line cut back across the spouse's own box to reach it.
+          sourceHandle: exitSide(spousePos.x, unionAnchorPos.x),
+          target: unionId,
+          targetHandle: 'in',
+          type: 'elbowEdge',
+          data: unionEdgeCenterX !== undefined ? { centerX: unionEdgeCenterX } : undefined,
+          style: { stroke: color },
+        })
+      }
 
-    nodes.push({
-      id: unionId,
-      type: 'unionNode',
-      position: unionAnchorPos,
-      data: { color, spouseId: unit.spouse.id, anchorId: unit.anchor.id },
-      draggable: true,
-      selectable: false,
-    })
-    for (const child of unit.children) {
-      edges.push({ id: `child-${unionId}-${child.id}`, source: unionId, target: child.id, type: 'smoothstep', style: { stroke: color } })
+      nodes.push({
+        id: unionId,
+        type: 'unionNode',
+        position: unionAnchorPos,
+        data: { color, spouseId: unit.spouse.id, anchorId: unit.anchor.id },
+        draggable: true,
+        selectable: false,
+      })
+      for (const child of unit.children) {
+        edges.push({ id: `child-${unionId}-${child.id}`, source: unionId, target: child.id, type: 'smoothstep', style: { stroke: color } })
+      }
     }
   }
 
