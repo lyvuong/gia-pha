@@ -54,6 +54,14 @@ function pairKey(a: string, b: string): string {
   return [a, b].sort().join('|')
 }
 
+/** Which side of a box at `boxX` a connector should leave from to reach `towardX`, so the
+ * line heads straight for its target instead of exiting the far side and doubling back
+ * across the box itself (which is what happens if a handle is hardcoded to one side
+ * without checking where the other end actually ended up — e.g. after a manual drag). */
+function exitSide(boxX: number, towardX: number): 'left' | 'right' {
+  return towardX < boxX + NODE_WIDTH / 2 ? 'left' : 'right'
+}
+
 function compareBirthOrder(a: Member, b: Member): number {
   if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
   return 0
@@ -417,12 +425,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     let unionEdgeCenterX: number | undefined
 
     if (manuallyPlaced) {
+      // A dragged box could have landed on either side of its spouse, above or below —
+      // pick whichever handle actually faces the other party instead of assuming anchor
+      // is left, so the line heads straight there instead of exiting the far side and
+      // cutting back across its own box to get there.
       edges.push({
         id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
         source: unit.anchor.id,
-        sourceHandle: 'right',
+        sourceHandle: exitSide(anchorPos.x, spousePos.x + NODE_WIDTH / 2),
         target: unit.spouse.id,
-        targetHandle: 'left',
+        targetHandle: exitSide(spousePos.x, anchorPos.x + NODE_WIDTH / 2),
         type: 'elbowEdge',
         style: { stroke: color },
       })
@@ -478,7 +490,11 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       edges.push({
         id: `spouse-to-union-${unit.key}`,
         source: unit.spouse.id,
-        sourceHandle: 'right',
+        // The stacked, non-overridden case always resolves to 'right' here too (the
+        // channel is by construction to the wife's right), so this is safe for every
+        // branch — it just also stops a manually placed/dragged dot on the *other* side
+        // from making the line cut back across the spouse's own box to reach it.
+        sourceHandle: exitSide(spousePos.x, unionAnchorPos.x),
         target: unionId,
         targetHandle: 'in',
         type: 'elbowEdge',
