@@ -10,8 +10,6 @@ const ROW_HEIGHT = 180
  * root ancestors). A thin divider line (see `GROUP_DIVIDER_HEIGHT`) is centered in it. */
 const GROUP_GAP = HORIZONTAL_GAP + 40
 export const GROUP_DIVIDER_HEIGHT = NODE_HEIGHT + 48
-/** How far above a remarried person's row their marriage hub sits (see `MarriageHub`). */
-const HUB_OFFSET = 40
 
 /** Colorblind-safe (Okabe–Ito) palette assigned one-per-couple, cycling if there are
  * more couples than colors — so a union's spouse line, its own dot, and every line to
@@ -60,9 +58,14 @@ interface FamilyUnit {
   children: Member[]
 }
 
+/** One slot in a row: either a single person, or a remarried person's whole set of
+ * wives, stacked vertically in one shared column instead of spread out horizontally
+ * (see `computeTreeLayout`). */
+type BlockItem = { kind: 'single'; member: Member } | { kind: 'stack'; anchor: Member; wives: Member[] }
+
 /**
  * Lays out the family tree with every generation as its own strict horizontal band
- * (`member.generation` is authoritative for row/Y position, same as a simple family-tree
+ * (`member.generation` is authoritative for row position, same as a simple family-tree
  * chart) — but with every connecting line kept orthogonal (horizontal/vertical segments
  * only, never diagonal), solid (never dashed), and routed so it never crosses another
  * line or cuts across an unrelated person's box:
@@ -71,11 +74,12 @@ interface FamilyUnit {
  *   they married in) so two different parent-couples' children never interleave.
  * - A child-generation row's blocks are ordered to match their parents' left-to-right
  *   order in the row above, so parent→child lines never cross each other.
- * - A person with more than one spouse (remarriage) doesn't get a direct line to a
- *   non-adjacent spouse — instead their line goes straight up to a small "marriage hub"
- *   above the row, which drops a straight line back down to each spouse (see
- *   `MarriageHub`). This is the only way to connect a person to several others without
- *   either a diagonal line or one that passes through whoever sits between them.
+ * - A person with more than one spouse (remarriage) doesn't get spread across the row —
+ *   all of their wives stack vertically in one column to their right instead, making the
+ *   generation's band taller rather than wider. Their line to each wife, and each wife's
+ *   line down to her own children, only ever runs horizontally-then-vertically: a wife's
+ *   children exit from her *right* edge into the gap beside the stack, then turn down —
+ *   never straight down through whichever other wife is stacked below her.
  */
 export function computeTreeLayout(members: Member[]): LayoutResult {
   if (members.length === 0) return { nodes: [], edges: [] }
@@ -98,10 +102,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     spousesOf.set(b, [...(spousesOf.get(b) ?? []), a])
   }
 
-  // Whoever has the most recorded marriages is the one whose line goes through the
-  // marriage hub for all of them, regardless of gender (which may not be recorded) or
-  // which side of a pair happened to be visited first above — otherwise one person's
-  // marriages could end up inconsistently anchored depending on iteration order.
+  // Whoever has the most recorded marriages is the one whose wives stack under them,
+  // regardless of gender (which may not be recorded) or which side of a pair happened to
+  // be visited first above — otherwise one person's marriages could end up inconsistently
+  // anchored depending on iteration order.
   const spouseCountOf = new Map<string, number>()
   for (const [a, b] of spousePairs.values()) {
     spouseCountOf.set(a, (spouseCountOf.get(a) ?? 0) + 1)
@@ -153,53 +157,50 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return [...m.parentIds].sort().join('|')
   }
 
-  // --- Group each generation into contiguous "family blocks" ---
-  const minGeneration = Math.min(...members.map((m) => m.generation))
-  const byGeneration = new Map<number, Member[]>()
-  for (const m of members) {
-    byGeneration.set(m.generation, [...(byGeneration.get(m.generation) ?? []), m])
+  function sortedSpousesIn(person: Member, allowedIds: Set<string>, excluded: Set<string>): Member[] {
+    return (spousesOf.get(person.id) ?? [])
+      .filter((id) => allowedIds.has(id) && !excluded.has(id))
+      .map((id) => byId.get(id)!)
+      .sort((a, b) => compareBirthOrder(a, b) || a.id.localeCompare(b.id))
   }
 
-  interface Block {
-    members: Member[]
-    /** Sort key for this block's left-to-right position among its row's other blocks. */
-    anchorX: number
-  }
-
-  function blockOf(clusterMembers: Member[]): Member[] {
-    // Full siblings (if any) sorted oldest-to-left; each sibling immediately followed by
-    // their own spouse(s) in this cluster, in a stable order. A cluster with nobody
-    // recorded as anyone's child (a root-level marriage with no parents of their own) is
-    // instead anchored on whoever has the most spouses, followed by each spouse in order.
+  /** Orders a cluster into blocks: full siblings (if any) sorted oldest-to-left, each
+   * immediately followed by their own spouse(s) — a remarried sibling's spouses become
+   * one 'stack' item instead of being listed side by side. A cluster with nobody recorded
+   * as anyone's child (a root-level marriage with no parents of their own) is instead
+   * anchored on whoever has the most spouses, followed by their spouse(s). */
+  function blockOf(clusterMembers: Member[]): BlockItem[] {
     const clusterIds = new Set(clusterMembers.map((m) => m.id))
     const withParents = clusterMembers.filter((m) => siblingKey(m) !== '')
     const placed = new Set<string>()
-    const result: Member[] = []
+    const result: BlockItem[] = []
 
-    function appendWithSpouses(person: Member) {
+    function appendPerson(person: Member) {
       if (placed.has(person.id)) return
-      result.push(person)
       placed.add(person.id)
-      const spouseIds = (spousesOf.get(person.id) ?? []).filter((id) => clusterIds.has(id) && !placed.has(id))
-      const spouses = spouseIds
-        .map((id) => byId.get(id)!)
-        .sort((a, b) => compareBirthOrder(a, b) || a.id.localeCompare(b.id))
-      for (const spouse of spouses) {
-        result.push(spouse)
-        placed.add(spouse.id)
+      const spouses = sortedSpousesIn(person, clusterIds, placed)
+      if (spouses.length === 0) {
+        result.push({ kind: 'single', member: person })
+        return
+      }
+      for (const spouse of spouses) placed.add(spouse.id)
+      if ((spouseCountOf.get(person.id) ?? 0) >= 2) {
+        result.push({ kind: 'stack', anchor: person, wives: spouses })
+      } else {
+        result.push({ kind: 'single', member: person })
+        for (const spouse of spouses) result.push({ kind: 'single', member: spouse })
       }
     }
 
     if (withParents.length > 0) {
-      const siblingsSorted = [...withParents].sort(compareBirthOrder)
-      for (const sibling of siblingsSorted) appendWithSpouses(sibling)
+      for (const sibling of [...withParents].sort(compareBirthOrder)) appendPerson(sibling)
     } else {
       const anchor = clusterMembers.reduce((best, m) =>
         (spouseCountOf.get(m.id) ?? 0) > (spouseCountOf.get(best.id) ?? 0) ? m : best,
       )
-      appendWithSpouses(anchor)
+      appendPerson(anchor)
     }
-    for (const m of clusterMembers) if (!placed.has(m.id)) appendWithSpouses(m)
+    for (const m of clusterMembers) if (!placed.has(m.id)) appendPerson(m)
     return result
   }
 
@@ -239,44 +240,82 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return [...groups.values()]
   }
 
+  const byGeneration = new Map<number, Member[]>()
+  for (const m of members) {
+    byGeneration.set(m.generation, [...(byGeneration.get(m.generation) ?? []), m])
+  }
+  const generations = [...byGeneration.keys()].sort((a, b) => a - b)
+
+  // A generation's band is normally one row tall, but grows taller (never wider) to fit
+  // whichever of its members has the most wives stacked under them.
+  const bandHeightOf = new Map<number, number>()
+  for (const generation of generations) {
+    const maxWives = Math.max(1, ...byGeneration.get(generation)!.map((m) => spouseCountOf.get(m.id) ?? 1))
+    bandHeightOf.set(generation, maxWives * ROW_HEIGHT)
+  }
+  const bandTopOf = new Map<number, number>()
+  let cumulativeY = 0
+  for (const generation of generations) {
+    bandTopOf.set(generation, cumulativeY)
+    cumulativeY += bandHeightOf.get(generation)!
+  }
+
+  interface Block {
+    items: BlockItem[]
+    /** Sort key for this block's left-to-right position among its row's other blocks. */
+    anchorX: number
+  }
+
   const positions = new Map<string, { x: number; y: number }>()
   const visited = new Set<string>()
   const dividerPositions: { x: number; y: number }[] = []
 
-  const generations = [...byGeneration.keys()].sort((a, b) => a - b)
   for (const generation of generations) {
-    const y = (generation - minGeneration) * ROW_HEIGHT
+    const bandTop = bandTopOf.get(generation)!
     const clusters = clusterInto(byGeneration.get(generation)!)
 
     const blocks: Block[] = clusters.map((clusterMembers) => {
-      const ordered = blockOf(clusterMembers)
+      const items = blockOf(clusterMembers)
+      const flat = items.flatMap((item) => (item.kind === 'single' ? [item.member] : [item.anchor, ...item.wives]))
       // Anchor this block's left-to-right position on its parents' already-placed
       // position (generations are processed top-down), so parent→child lines never
       // cross. A block with no parents in this tree (a root ancestor, or an anchor
       // whose own marriages have no recorded parents) falls back to birth order.
-      const withParents = ordered.find((m) => m.parentIds.some((p) => byId.has(p)))
+      const withParents = flat.find((m) => m.parentIds.some((p) => byId.has(p)))
       let anchorX: number
       if (withParents) {
         const validParents = withParents.parentIds.filter((p) => byId.has(p))
         const parentXs = validParents.map((p) => positions.get(p)?.x ?? 0)
         anchorX = parentXs.reduce((a, b) => a + b, 0) / parentXs.length
       } else {
-        anchorX = ordered[0].birthDate ? Date.parse(ordered[0].birthDate) : 0
+        anchorX = flat[0].birthDate ? Date.parse(flat[0].birthDate) : 0
       }
-      return { members: ordered, anchorX }
+      return { items, anchorX }
     })
-    blocks.sort((a, b) => a.anchorX - b.anchorX || a.members[0].id.localeCompare(b.members[0].id))
+    blocks.sort((a, b) => a.anchorX - b.anchorX)
 
     let cursorX = 0
     blocks.forEach((block, i) => {
       if (i > 0) {
-        dividerPositions.push({ x: cursorX - GROUP_GAP / 2, y })
+        dividerPositions.push({ x: cursorX - GROUP_GAP / 2, y: bandTop })
         cursorX += GROUP_GAP - HORIZONTAL_GAP
       }
-      for (const m of block.members) {
-        positions.set(m.id, { x: cursorX, y })
-        visited.add(m.id)
-        cursorX += NODE_WIDTH + HORIZONTAL_GAP
+      for (const item of block.items) {
+        if (item.kind === 'single') {
+          positions.set(item.member.id, { x: cursorX, y: bandTop })
+          visited.add(item.member.id)
+          cursorX += NODE_WIDTH + HORIZONTAL_GAP
+        } else {
+          positions.set(item.anchor.id, { x: cursorX, y: bandTop })
+          visited.add(item.anchor.id)
+          cursorX += NODE_WIDTH + HORIZONTAL_GAP
+          const stackX = cursorX
+          item.wives.forEach((wife, wi) => {
+            positions.set(wife.id, { x: stackX, y: bandTop + wi * ROW_HEIGHT })
+            visited.add(wife.id)
+          })
+          cursorX += NODE_WIDTH + HORIZONTAL_GAP
+        }
       }
     })
   }
@@ -314,18 +353,17 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   })
 
   const edges: TreeEdge[] = []
-  const hubIdOf = new Map<string, string>() // anchor member id -> hub node id, created lazily
 
   for (const unit of unitsByKey.values()) {
     const anchorPos = positions.get(unit.anchor.id)
     if (!anchorPos || !unit.spouse) continue
     const spousePos = positions.get(unit.spouse.id)!
     const color = unionColors.get(unit.key)
-    const adjacent = Math.abs(anchorPos.x - spousePos.x) <= NODE_WIDTH + HORIZONTAL_GAP + 1
+    const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
 
     let unionAnchorPos: { x: number; y: number }
 
-    if (adjacent) {
+    if (!stacked) {
       // An ordinary, adjacent couple: a plain straight marriage line, and their shared
       // union point sits at the true midpoint between them.
       const [leftId, rightId] = anchorPos.x <= spousePos.x ? [unit.anchor.id, unit.spouse.id] : [unit.spouse.id, unit.anchor.id]
@@ -340,47 +378,41 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       })
       unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
     } else {
-      // A remarriage to a spouse who isn't sitting right next to the anchor: route
-      // through a shared marriage hub above the row instead of a direct line, which
-      // would otherwise have to run diagonally or straight through whoever sits between
-      // them. The union point for this specific couple's children sits directly under
-      // the spouse (their row is already ordered to match, so this can't cross anyone).
-      let hubId = hubIdOf.get(unit.anchor.id)
-      if (!hubId) {
-        hubId = `hub-${unit.anchor.id}`
-        hubIdOf.set(unit.anchor.id, hubId)
-        nodes.push({
-          id: hubId,
-          type: 'marriageHub',
-          position: { x: anchorPos.x, y: anchorPos.y - HUB_OFFSET },
-          data: {},
-          draggable: false,
-          selectable: false,
-        })
-        edges.push({
-          id: `hub-in-${unit.anchor.id}`,
-          source: unit.anchor.id,
-          sourceHandle: 'top',
-          target: hubId,
-          targetHandle: 'in',
-          type: 'smoothstep',
-          style: { stroke: 'var(--color-gold-dark)' },
-        })
-      }
+      // A remarried anchor's wives are stacked in one column to their right (see
+      // `blockOf`); a plain orthogonal line from the anchor's right edge into each
+      // wife's left edge naturally shares the same vertical segment for all of them
+      // (since every wife sits at the same x), reading as one shared spine without
+      // needing to draw it specially — and it never runs through another stacked wife,
+      // since that shared segment sits in the gap *between* the anchor and the stack,
+      // not at the stack's own column.
       edges.push({
-        id: `hub-out-${unit.anchor.id}-${unit.spouse.id}`,
-        source: hubId,
-        sourceHandle: 'out',
+        id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
+        source: unit.anchor.id,
+        sourceHandle: 'right',
         target: unit.spouse.id,
-        targetHandle: undefined,
+        targetHandle: 'left',
         type: 'smoothstep',
         style: { stroke: color },
       })
-      unionAnchorPos = { x: spousePos.x + NODE_WIDTH / 2, y: spousePos.y + NODE_HEIGHT }
+      // This wife's own children exit her *right* edge (never straight down, which
+      // would run through whichever other wife is stacked below her) into the gap
+      // beside the stack, then turn down into the generation band below.
+      unionAnchorPos = { x: spousePos.x + NODE_WIDTH + HORIZONTAL_GAP / 2, y: bandTopOf.get(unit.anchor.generation)! + bandHeightOf.get(unit.anchor.generation)! }
     }
 
     const unionId = `union-${unit.key}`
     nodes.push({ id: unionId, type: 'unionNode', position: unionAnchorPos, data: { color }, draggable: false, selectable: false })
+    if (stacked) {
+      edges.push({
+        id: `spouse-to-union-${unit.key}`,
+        source: unit.spouse.id,
+        sourceHandle: 'right',
+        target: unionId,
+        targetHandle: 'in',
+        type: 'smoothstep',
+        style: { stroke: color },
+      })
+    }
     for (const child of unit.children) {
       edges.push({ id: `child-${unionId}-${child.id}`, source: unionId, target: child.id, type: 'smoothstep', style: { stroke: color } })
     }

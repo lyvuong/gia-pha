@@ -8,6 +8,7 @@ import type { TreeNode } from '../../lib/treeLayout'
 export function UnionNode({ data }: NodeProps<TreeNode>) {
   return (
     <div className="union-node" style={{ '--union-color': data.color } as CSSProperties}>
+      <Handle type="target" id="in" position={Position.Left} />
       <Handle type="source" position={Position.Bottom} />
     </div>
   )
