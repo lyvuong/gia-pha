@@ -59,6 +59,12 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 button.language-toggle,
 button.story-delete {
   background: transparent;

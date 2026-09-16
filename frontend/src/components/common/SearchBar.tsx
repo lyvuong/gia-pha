@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { normalizeVietnamese } from '../../lib/normalizeVietnamese'
 import type { Member } from '../../types/models'
+import { SearchIcon } from './icons'
 
 interface SearchBarProps {
   members: Member[]
@@ -20,6 +21,7 @@ export function SearchBar({ members, onSelectMember }: SearchBarProps) {
 
   return (
     <div className="search-bar">
+      <SearchIcon size={15} />
       <input
         type="search"
         value={query}

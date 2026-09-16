@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
+import { AddMemberIcon } from '../components/common/icons'
 import { LanguageToggle } from '../components/common/LanguageToggle'
 import { Logo } from '../components/common/Logo'
 import { SearchBar } from '../components/common/SearchBar'
@@ -94,7 +95,10 @@ export function TreePage() {
             setCenterOnMemberId(m.id)
           }}
         />
-        <button type="button" onClick={() => setAdding(true)}>{t('tree.addMember')}</button>
+        <button type="button" className="icon-button" onClick={() => setAdding(true)}>
+          <AddMemberIcon size={15} />
+          {t('tree.addMember')}
+        </button>
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />

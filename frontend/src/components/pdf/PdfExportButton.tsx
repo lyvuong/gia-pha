@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { exportGiaPhaPdf } from '../../lib/pdfExport'
 import type { Member } from '../../types/models'
+import { ExportIcon } from '../common/icons'
 
 interface PdfExportButtonProps {
   giaPhaName: string
@@ -25,7 +26,8 @@ export function PdfExportButton({ giaPhaName, members, treeContainerRef }: PdfEx
   }
 
   return (
-    <button type="button" className="pdf-export-button" onClick={handleExport} disabled={exporting}>
+    <button type="button" className="pdf-export-button icon-button" onClick={handleExport} disabled={exporting}>
+      {!exporting && <ExportIcon size={15} />}
       {exporting ? t('common.loading') : t('tree.exportPdf')}
     </button>
   )

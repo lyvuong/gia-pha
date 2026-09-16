@@ -103,6 +103,19 @@
 /* Search */
 .search-bar {
   position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar svg {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+}
+
+.search-bar input {
+  padding-left: 30px;
 }
 
 .search-results {
