@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
-import { AddMemberIcon } from '../components/common/icons'
+import { AddMemberIcon, TrashIcon } from '../components/common/icons'
 import { LanguageToggle } from '../components/common/LanguageToggle'
 import { Logo } from '../components/common/Logo'
 import { SearchBar } from '../components/common/SearchBar'
@@ -9,6 +9,7 @@ import { ThemeToggle } from '../components/common/ThemeToggle'
 import { UserMenu } from '../components/common/UserMenu'
 import { MemberDetailPanel } from '../components/member/MemberDetailPanel'
 import { MemberEditForm } from '../components/member/MemberEditForm'
+import { TrashPanel } from '../components/member/TrashPanel'
 import { PdfExportButton } from '../components/pdf/PdfExportButton'
 import { TreeView } from '../components/tree/TreeView'
 import { useAuth } from '../context/AuthProvider'
@@ -22,12 +23,13 @@ export function TreePage() {
   const { giaPhaId } = useParams<{ giaPhaId: string }>()
   const { user } = useAuth()
   const { giaPha, loading: giaPhaLoading } = useGiaPha(giaPhaId)
-  const { members, loading: membersLoading } = useMembers(giaPhaId)
+  const { members, deletedMembers, loading: membersLoading } = useMembers(giaPhaId)
   const editorNames = useEditorProfiles(giaPhaId)
 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [centerOnMemberId, setCenterOnMemberId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [showingTrash, setShowingTrash] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const treeContainerRef = useRef<HTMLDivElement | null>(null)
@@ -91,13 +93,38 @@ export function TreePage() {
         <SearchBar
           members={members}
           onSelectMember={(m) => {
+            setShowingTrash(false)
             setSelectedMember(m)
             setCenterOnMemberId(m.id)
           }}
         />
-        <button type="button" className="icon-button" onClick={() => setAdding(true)} title={t('tree.addMember')}>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => {
+            setShowingTrash(false)
+            setAdding(true)
+          }}
+          title={t('tree.addMember')}
+        >
           <AddMemberIcon size={15} />
           <span className="btn-label">{t('tree.addMember')}</span>
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => {
+            setSelectedMember(null)
+            setAdding(false)
+            setShowingTrash(true)
+          }}
+          title={t('tree.trash')}
+        >
+          <TrashIcon size={15} />
+          <span className="btn-label">
+            {t('tree.trash')}
+            {deletedMembers.length > 0 && ` (${deletedMembers.length})`}
+          </span>
         </button>
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
@@ -110,7 +137,10 @@ export function TreePage() {
           members={members}
           selectedMemberId={selectedMember?.id ?? null}
           centerOnMemberId={centerOnMemberId}
-          onSelectMember={setSelectedMember}
+          onSelectMember={(m) => {
+            setShowingTrash(false)
+            setSelectedMember(m)
+          }}
           containerRef={treeContainerRef}
         />
 
@@ -127,7 +157,7 @@ export function TreePage() {
           </div>
         )}
 
-        {!adding && selectedMember && (
+        {!adding && !showingTrash && selectedMember && (
           <MemberDetailPanel
             giaPha={giaPha}
             member={selectedMember}
@@ -136,6 +166,15 @@ export function TreePage() {
             editorNames={editorNames}
             onClose={() => setSelectedMember(null)}
             onDeleted={() => setSelectedMember(null)}
+          />
+        )}
+
+        {showingTrash && (
+          <TrashPanel
+            giaPhaId={giaPha.id}
+            deletedMembers={deletedMembers}
+            currentUid={user.uid}
+            onClose={() => setShowingTrash(false)}
           />
         )}
       </div>

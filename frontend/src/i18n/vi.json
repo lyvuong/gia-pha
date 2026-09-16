@@ -22,7 +22,9 @@
     "createTitle": "Tạo gia phả của bạn",
     "createNamePlaceholder": "Tên gia phả, ví dụ \"Gia phả họ Nguyễn\"",
     "createButton": "Tạo",
-    "noTreeYet": "Bạn chưa có cây gia phả nào."
+    "noTreeYet": "Bạn chưa có cây gia phả nào.",
+    "trash": "Thùng rác",
+    "trashEmpty": "Thùng rác trống."
   },
   "member": {
     "fullName": "Họ và tên",
@@ -56,6 +58,11 @@
     "cancel": "Hủy",
     "edit": "Chỉnh sửa",
     "delete": "Xóa",
+    "moveToTrash": "Chuyển vào thùng rác",
+    "trashConfirm": "Chuyển {{name}} vào thùng rác? Bạn có thể khôi phục sau trong Thùng rác.",
+    "restore": "Khôi phục",
+    "deleteForever": "Xóa vĩnh viễn",
+    "deleteForeverConfirm": "Xóa vĩnh viễn {{name}}? Không thể hoàn tác.",
     "addRelative": "Thêm người thân của {{name}}",
     "addRelativeShort": "Thêm người thân",
     "chooseRelationship": "Mối quan hệ"

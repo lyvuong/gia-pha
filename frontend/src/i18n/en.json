@@ -22,7 +22,9 @@
     "createTitle": "Create your gia phả",
     "createNamePlaceholder": "Family tree name, e.g. \"Gia phả họ Nguyễn\"",
     "createButton": "Create",
-    "noTreeYet": "You don't have a family tree yet."
+    "noTreeYet": "You don't have a family tree yet.",
+    "trash": "Trash",
+    "trashEmpty": "Trash is empty."
   },
   "member": {
     "fullName": "Full name",
@@ -56,6 +58,11 @@
     "cancel": "Cancel",
     "edit": "Edit",
     "delete": "Delete",
+    "moveToTrash": "Move to Trash",
+    "trashConfirm": "Move {{name}} to Trash? You can restore them later from Trash.",
+    "restore": "Restore",
+    "deleteForever": "Delete forever",
+    "deleteForeverConfirm": "Permanently delete {{name}}? This cannot be undone.",
     "addRelative": "Add a relative of {{name}}",
     "addRelativeShort": "Add relative",
     "chooseRelationship": "Relationship"

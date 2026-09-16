@@ -50,28 +50,32 @@ function fromDoc(id: string, data: Record<string, unknown>): Member {
     bioOverride: (data.bioOverride as string | null) ?? null,
     lastEditedBy: (data.lastEditedBy as string) ?? '',
     lastEditedAt: lastEditedAt?.toMillis() ?? Date.now(),
+    deletedAt: (data.deletedAt as Timestamp | undefined)?.toMillis() ?? null,
   }
 }
 
 export function useMembers(giaPhaId: string | undefined) {
-  const [members, setMembers] = useState<Member[]>([])
+  const [allMembers, setAllMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!giaPhaId) {
-      setMembers([])
+      setAllMembers([])
       setLoading(false)
       return
     }
     setLoading(true)
     const unsubscribe = onSnapshot(collection(db, 'giaPha', giaPhaId, 'members'), (snap) => {
-      setMembers(snap.docs.map((d) => fromDoc(d.id, d.data())))
+      setAllMembers(snap.docs.map((d) => fromDoc(d.id, d.data())))
       setLoading(false)
     })
     return unsubscribe
   }, [giaPhaId])
 
-  return { members, loading }
+  const members = allMembers.filter((m) => !m.deletedAt)
+  const deletedMembers = allMembers.filter((m) => m.deletedAt)
+
+  return { members, deletedMembers, loading }
 }
 
 export async function addMember(giaPhaId: string, member: NewMember, uid: string): Promise<string> {
@@ -99,7 +103,27 @@ export async function updateMember(
   })
 }
 
-export async function deleteMember(giaPhaId: string, memberId: string): Promise<void> {
+/** Moves a member to Trash instead of deleting it outright, so an accidental or
+ * mistaken delete can be undone with `restoreMember`. */
+export async function trashMember(giaPhaId: string, memberId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPhaId, 'members', memberId), {
+    deletedAt: serverTimestamp(),
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+  })
+}
+
+export async function restoreMember(giaPhaId: string, memberId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, 'giaPha', giaPhaId, 'members', memberId), {
+    deletedAt: null,
+    lastEditedBy: uid,
+    lastEditedAt: serverTimestamp(),
+  })
+}
+
+/** Permanently deletes a member — only reachable from the Trash view, after it's
+ * already been soft-deleted once via `trashMember`. */
+export async function permanentlyDeleteMember(giaPhaId: string, memberId: string): Promise<void> {
   await deleteDoc(doc(db, 'giaPha', giaPhaId, 'members', memberId))
 }
 

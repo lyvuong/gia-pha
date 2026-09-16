@@ -4,7 +4,7 @@ import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
-import { deleteMember } from '../../hooks/useMembers'
+import { trashMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
 import { AddRelativeFlow } from './AddRelativeFlow'
 import { MemberEditForm } from './MemberEditForm'
@@ -58,8 +58,8 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
   async function handleDelete() {
-    if (!confirm(`${t('member.delete')} ${member.fullName}?`)) return
-    await deleteMember(giaPha.id, member.id)
+    if (!confirm(t('member.trashConfirm', { name: member.fullName }))) return
+    await trashMember(giaPha.id, member.id, currentUid)
     onDeleted()
   }
 
@@ -115,7 +115,7 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       <div className="member-detail-actions">
         <button type="button" onClick={() => setEditing(true)}>{t('member.edit')}</button>
         <button type="button" onClick={() => setAddingRelative(true)}>{t('member.addRelativeShort')}</button>
-        <button type="button" onClick={handleDelete}>{t('member.delete')}</button>
+        <button type="button" onClick={handleDelete}>{t('member.moveToTrash')}</button>
       </div>
 
       <StoriesList

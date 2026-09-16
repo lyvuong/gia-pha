@@ -52,6 +52,9 @@ export interface Member {
   bioOverride: string | null
   lastEditedBy: string
   lastEditedAt: number
+  /** Set when the member is moved to Trash instead of being permanently deleted; null
+   * while active. Lets an accidental delete be undone via `restoreMember`. */
+  deletedAt: number | null
 }
 
-export type NewMember = Omit<Member, 'id' | 'searchKey' | 'lastEditedBy' | 'lastEditedAt'>
+export type NewMember = Omit<Member, 'id' | 'searchKey' | 'lastEditedBy' | 'lastEditedAt' | 'deletedAt'>
