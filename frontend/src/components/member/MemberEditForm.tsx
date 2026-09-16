@@ -68,6 +68,13 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
   const [saving, setSaving] = useState(false)
 
   const otherMembers = members.filter((m) => m.id !== member?.id)
+  // A parent, spouse, and child are mutually exclusive relationships — cross out
+  // whichever's already picked in the other field so the two lists (often near-identical
+  // for a small tree) can't be confused for one another, and so a parent can't
+  // accidentally be selected as a spouse or vice versa.
+  const childIds = new Set(member ? members.filter((m) => m.parentIds.includes(member.id)).map((m) => m.id) : [])
+  const parentCandidates = otherMembers.filter((m) => !draft.spouseIds.includes(m.id) && !childIds.has(m.id))
+  const spouseCandidates = otherMembers.filter((m) => !draft.parentIds.includes(m.id) && !childIds.has(m.id))
 
   function updateField<K extends keyof NewMember>(key: K, value: NewMember[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
@@ -230,7 +237,7 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
           value={draft.parentIds}
           onChange={(e) => updateField('parentIds', selectedOptions(e.target))}
         >
-          {otherMembers.map((m) => (
+          {parentCandidates.map((m) => (
             <option key={m.id} value={m.id}>{m.fullName}</option>
           ))}
         </select>
@@ -243,7 +250,7 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
           value={draft.spouseIds}
           onChange={(e) => updateField('spouseIds', selectedOptions(e.target))}
         >
-          {otherMembers.map((m) => (
+          {spouseCandidates.map((m) => (
             <option key={m.id} value={m.id}>{m.fullName}</option>
           ))}
         </select>
