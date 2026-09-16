@@ -474,14 +474,22 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         data: { centerX: spineX },
         style: { stroke: 'var(--color-gold-dark)' },
       })
-      // This wife's own children exit her *right* edge (never straight down, which
-      // would run through whichever other wife is stacked below her) into her own
-      // channel (computed above, alongside her position), then turn down into the
-      // generation band below.
-      const channelX = channelXByWifeId.get(unit.spouse.id)!
-      unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
-      needsUnionEdge = true
-      unionEdgeCenterX = unionOverride ? undefined : channelX
+      if (unit.children.length > 0) {
+        // This wife's own children exit her *right* edge (never straight down, which
+        // would run through whichever other wife is stacked below her) into her own
+        // channel (computed above, alongside her position), then turn down into the
+        // generation band below.
+        const channelX = channelXByWifeId.get(unit.spouse.id)!
+        unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
+        needsUnionEdge = true
+        unionEdgeCenterX = unionOverride ? undefined : channelX
+      } else {
+        // No children to route through a channel, so there's nothing to detour for —
+        // put the union dot right on the marriage spine, same as an ordinary couple,
+        // instead of a dangling line down to an otherwise-unused channel hub.
+        unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
+        needsUnionEdge = !!unionOverride
+      }
     }
 
     if (unionOverride) unionAnchorPos = unionOverride
