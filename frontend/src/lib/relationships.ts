@@ -82,9 +82,19 @@ export function relativeBackLinks(
       break
     }
     case 'husband':
-    case 'wife':
+    case 'wife': {
       patches.push({ memberId: anchor.id, patch: { spouseIds: [...anchor.spouseIds, newMemberId] } })
+      // Backfill: any of the anchor's existing children who only had the anchor as a
+      // parent (because they were added before this spouse existed) should now also
+      // list the new spouse, so the tree connects them to the couple's union point
+      // instead of a single parent.
+      for (const child of members) {
+        if (child.parentIds.includes(anchor.id) && !child.parentIds.includes(newMemberId)) {
+          patches.push({ memberId: child.id, patch: { parentIds: [...child.parentIds, newMemberId] } })
+        }
+      }
       break
+    }
     case 'son':
     case 'daughter':
     case 'brother':
