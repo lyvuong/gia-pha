@@ -98,22 +98,61 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     partnerOf.set(b, a)
   }
 
-  /** Re-threads a dagre-x-sorted row so each primary spouse pair ends up adjacent. */
+  /** Husband to the left, wife to the right when both genders are known; otherwise
+   * keep whichever order the two already had. */
+  function orderCouple(a: Member, b: Member): [Member, Member] {
+    if (a.gender === 'female' && b.gender === 'male') return [b, a]
+    return [a, b]
+  }
+
+  /** Re-threads a dagre-x-sorted row so each primary spouse pair ends up adjacent,
+   * ordered husband-left/wife-right where gender is known. */
   function withSpousesAdjacent(sorted: Member[]): Member[] {
     const result: Member[] = []
     const placed = new Set<string>()
     for (const member of sorted) {
       if (placed.has(member.id)) continue
-      result.push(member)
-      placed.add(member.id)
       const partnerId = partnerOf.get(member.id)
-      if (partnerId && !placed.has(partnerId)) {
-        const partner = sorted.find((x) => x.id === partnerId)
-        if (partner) {
-          result.push(partner)
-          placed.add(partnerId)
-        }
+      const partner = partnerId && !placed.has(partnerId) ? sorted.find((x) => x.id === partnerId) : undefined
+      if (partner) {
+        const [left, right] = orderCouple(member, partner)
+        result.push(left)
+        placed.add(left.id)
+        result.push(right)
+        placed.add(right.id)
+      } else {
+        result.push(member)
+        placed.add(member.id)
       }
+    }
+    return result
+  }
+
+  /** Key shared by full siblings (same parent pair, order-independent), or '' for
+   * members with no recorded parents in this tree (not a sibling group). */
+  function siblingKey(m: Member): string {
+    return [...m.parentIds].sort().join('|')
+  }
+
+  function compareBirthOrder(a: Member, b: Member): number {
+    if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
+    return 0
+  }
+
+  /** Orders each maximal run of consecutive full siblings oldest-to-left, leaving
+   * everything else (family-group order from dagre, married-in spouses, members
+   * with unknown birth dates) untouched. */
+  function orderSiblingsByBirth(sorted: Member[]): Member[] {
+    const result: Member[] = []
+    let i = 0
+    while (i < sorted.length) {
+      const key = siblingKey(sorted[i])
+      let j = i + 1
+      while (j < sorted.length && siblingKey(sorted[j]) === key) j++
+      const run = sorted.slice(i, j)
+      if (key) run.sort(compareBirthOrder)
+      result.push(...run)
+      i = j
     }
     return result
   }
@@ -138,7 +177,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       const bx = g.node(b.id)?.x ?? 0
       return ax - bx
     })
-    const sorted = withSpousesAdjacent(sortedByDagreX)
+    const sorted = withSpousesAdjacent(orderSiblingsByBirth(sortedByDagreX))
     rowMembers.set(generation, sorted)
     rowWidths.set(generation, sorted.length * NODE_WIDTH + (sorted.length - 1) * HORIZONTAL_GAP)
   }

@@ -34,6 +34,7 @@ function fromDoc(id: string, data: Record<string, unknown>): Member {
     names: (data.names as NameEntry[] | undefined) ?? legacyNames(data),
     searchKey: (data.searchKey as string) ?? '',
     photoUrl: (data.photoUrl as string | null) ?? null,
+    gender: (data.gender as Member['gender']) ?? null,
     generation: (data.generation as number) ?? 0,
     birthDate: (data.birthDate as string | null) ?? null,
     deathDate: (data.deathDate as string | null) ?? null,

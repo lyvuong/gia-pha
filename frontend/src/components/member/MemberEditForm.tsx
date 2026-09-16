@@ -21,6 +21,7 @@ function emptyDraft(overrides?: Partial<NewMember>): NewMember {
     fullName: '',
     names: [],
     photoUrl: null,
+    gender: null,
     generation: 1,
     birthDate: null,
     deathDate: null,
@@ -47,6 +48,7 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
           fullName: member.fullName,
           names: member.names,
           photoUrl: member.photoUrl,
+          gender: member.gender,
           generation: member.generation,
           birthDate: member.birthDate,
           deathDate: member.deathDate,
@@ -149,6 +151,18 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
           onChange={(e) => updateField('fullName', e.target.value)}
           required
         />
+      </label>
+
+      <label>
+        {t('member.gender')}
+        <select
+          value={draft.gender ?? ''}
+          onChange={(e) => updateField('gender', (e.target.value || null) as NewMember['gender'])}
+        >
+          <option value="">{t('member.genderUnspecified')}</option>
+          <option value="male">{t('member.male')}</option>
+          <option value="female">{t('member.female')}</option>
+        </select>
       </label>
 
       <fieldset>

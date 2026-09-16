@@ -28,12 +28,15 @@ export interface NameEntry {
   value: string
 }
 
+export type Gender = 'male' | 'female'
+
 export interface Member {
   id: string
   fullName: string
   names: NameEntry[]
   searchKey: string
   photoUrl: string | null
+  gender: Gender | null
   generation: number
   birthDate: string | null
   deathDate: string | null

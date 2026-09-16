@@ -26,6 +26,10 @@
   },
   "member": {
     "fullName": "Full name",
+    "gender": "Gender",
+    "genderUnspecified": "Unspecified",
+    "male": "Male",
+    "female": "Female",
     "otherNames": "Other names",
     "birthName": "Birth name",
     "aka": "AKA",

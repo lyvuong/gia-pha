@@ -1,4 +1,4 @@
-import type { Member, NewMember } from '../types/models'
+import type { Gender, Member, NewMember } from '../types/models'
 
 export type RelationshipType = 'father' | 'mother' | 'husband' | 'wife' | 'son' | 'daughter' | 'brother' | 'sister'
 
@@ -13,17 +13,32 @@ export const RELATIONSHIP_TYPES: RelationshipType[] = [
   'sister',
 ]
 
+const RELATIONSHIP_GENDER: Record<RelationshipType, Gender> = {
+  father: 'male',
+  mother: 'female',
+  husband: 'male',
+  wife: 'female',
+  son: 'male',
+  daughter: 'female',
+  brother: 'male',
+  sister: 'female',
+}
+
 /**
- * The data model has no gender field, so paired labels (father/mother,
- * son/daughter, brother/sister, husband/wife) resolve to the same
- * structural effect — the distinction is only for the picker's wording.
+ * Paired labels (father/mother, son/daughter, brother/sister, husband/wife)
+ * resolve to the same structural effect on parent/spouse links — the label
+ * also seeds the new member's `gender`, since it's the one point in the
+ * flow where the user states it directly (used for husband-left/wife-right
+ * ordering in the tree view).
  */
 export function buildRelativeDraft(relationship: RelationshipType, anchor: Member): Partial<NewMember> {
+  const gender = RELATIONSHIP_GENDER[relationship]
   switch (relationship) {
     case 'father':
     case 'mother': {
       const existingParentId = anchor.parentIds[0]
       return {
+        gender,
         generation: anchor.generation - 1,
         parentIds: [],
         spouseIds: existingParentId ? [existingParentId] : [],
@@ -33,6 +48,7 @@ export function buildRelativeDraft(relationship: RelationshipType, anchor: Membe
     case 'daughter': {
       const otherParentId = anchor.spouseIds[0]
       return {
+        gender,
         generation: anchor.generation + 1,
         parentIds: otherParentId ? [anchor.id, otherParentId] : [anchor.id],
         spouseIds: [],
@@ -41,6 +57,7 @@ export function buildRelativeDraft(relationship: RelationshipType, anchor: Membe
     case 'brother':
     case 'sister':
       return {
+        gender,
         generation: anchor.generation,
         parentIds: [...anchor.parentIds],
         spouseIds: [],
@@ -48,6 +65,7 @@ export function buildRelativeDraft(relationship: RelationshipType, anchor: Membe
     case 'husband':
     case 'wife':
       return {
+        gender,
         generation: anchor.generation,
         parentIds: [],
         spouseIds: [anchor.id],

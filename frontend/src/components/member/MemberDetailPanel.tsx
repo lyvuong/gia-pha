@@ -74,6 +74,12 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       {bio && <p className="member-bio">{bio}</p>}
 
       <dl>
+        {member.gender && (
+          <>
+            <dt>{t('member.gender')}</dt>
+            <dd>{t(`member.${member.gender}`)}</dd>
+          </>
+        )}
         {member.names.filter((n) => n.value).map((n, i) => (
           <Fragment key={i}>
             <dt>{t(`member.${n.label}`)}</dt>
