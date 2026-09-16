@@ -42,31 +42,22 @@ function pairKey(a: string, b: string): string {
  * is kept, then re-packed with fixed spacing per generation to avoid
  * overlaps.
  *
- * Only the first entry in `spouseIds` is treated as the primary lateral
- * pairing (used for x-adjacency and centering children below a couple) —
- * additional spouses (remarriage) are rendered as plain marriage lines
- * without a shared union anchor. This is an accepted v1 simplification.
+ * Every spouse pair (including a member's second, third, ... marriage) gets its
+ * own union anchor and adjacency slot in the row — see `withSpousesAdjacent` —
+ * so remarriages each render with exactly one line to their own spouse instead
+ * of sharing or drifting toward an unrelated spouse's position.
  */
 export function computeTreeLayout(members: Member[]): LayoutResult {
   if (members.length === 0) return { nodes: [], edges: [] }
 
   const byId = new Map(members.map((m) => [m.id, m]))
 
-  const primaryPairs = new Map<string, [string, string]>()
-  for (const m of members) {
-    const primaryId = m.spouseIds[0]
-    if (primaryId && byId.has(primaryId)) {
-      const key = pairKey(m.id, primaryId)
-      if (!primaryPairs.has(key)) primaryPairs.set(key, [m.id, primaryId])
-    }
-  }
-
-  const allPairs = new Map<string, [string, string]>()
+  const spousePairs = new Map<string, [string, string]>()
   for (const m of members) {
     for (const s of m.spouseIds) {
       if (byId.has(s)) {
         const key = pairKey(m.id, s)
-        if (!allPairs.has(key)) allPairs.set(key, [m.id, s])
+        if (!spousePairs.has(key)) spousePairs.set(key, [m.id, s])
       }
     }
   }
@@ -92,10 +83,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
 
   dagre.layout(g)
 
-  const partnerOf = new Map<string, string>()
-  for (const [a, b] of primaryPairs.values()) {
-    partnerOf.set(a, b)
-    partnerOf.set(b, a)
+  const spousesOf = new Map<string, string[]>()
+  for (const [a, b] of spousePairs.values()) {
+    spousesOf.set(a, [...(spousesOf.get(a) ?? []), b])
+    spousesOf.set(b, [...(spousesOf.get(b) ?? []), a])
   }
 
   /** Husband to the left, wife to the right when both genders are known; otherwise
@@ -105,25 +96,46 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return [a, b]
   }
 
-  /** Re-threads a dagre-x-sorted row so each primary spouse pair ends up adjacent,
-   * ordered husband-left/wife-right where gender is known. */
+  /** Re-threads a dagre-x-sorted row so every spouse pair ends up adjacent — not just
+   * a member's first marriage — ordered husband-left/wife-right where gender is known.
+   * A member with multiple spouses (remarriage) keeps them all flanking on alternating
+   * sides, so each pair's union anchor lands between the correct two nodes instead of
+   * drifting toward an unrelated spouse placed in between. With 3+ spouses for one
+   * member, only the two immediately flanking are guaranteed adjacent — an accepted
+   * v1 simplification for a rare case. */
   function withSpousesAdjacent(sorted: Member[]): Member[] {
     const result: Member[] = []
     const placed = new Set<string>()
     for (const member of sorted) {
       if (placed.has(member.id)) continue
-      const partnerId = partnerOf.get(member.id)
-      const partner = partnerId && !placed.has(partnerId) ? sorted.find((x) => x.id === partnerId) : undefined
-      if (partner) {
-        const [left, right] = orderCouple(member, partner)
-        result.push(left)
-        placed.add(left.id)
-        result.push(right)
-        placed.add(right.id)
-      } else {
+      const partners = (spousesOf.get(member.id) ?? [])
+        .filter((id) => !placed.has(id))
+        .map((id) => sorted.find((x) => x.id === id))
+        .filter((x): x is Member => x !== undefined)
+        .sort((a, b) => (a.birthDate ?? '').localeCompare(b.birthDate ?? '') || a.id.localeCompare(b.id))
+
+      if (partners.length === 0) {
         result.push(member)
         placed.add(member.id)
+        continue
       }
+      if (partners.length === 1) {
+        const [left, right] = orderCouple(member, partners[0])
+        result.push(left, right)
+        placed.add(left.id)
+        placed.add(right.id)
+        continue
+      }
+
+      const left: Member[] = []
+      const right: Member[] = []
+      partners.forEach((partner, i) => {
+        if (i % 2 === 0) right.push(partner)
+        else left.unshift(partner)
+      })
+      result.push(...left, member, ...right)
+      placed.add(member.id)
+      for (const partner of partners) placed.add(partner.id)
     }
     return result
   }
@@ -205,7 +217,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   const edges: TreeEdge[] = []
   const unionNodeIds = new Map<string, string>()
 
-  for (const [key, [a, b]] of primaryPairs.entries()) {
+  for (const [key, [a, b]] of spousePairs.entries()) {
     const posA = positions.get(a)
     const posB = positions.get(b)
     if (!posA || !posB) continue
@@ -224,7 +236,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     })
   }
 
-  for (const [, [a, b]] of allPairs.entries()) {
+  for (const [, [a, b]] of spousePairs.entries()) {
     const posA = positions.get(a)
     const posB = positions.get(b)
     const [leftId, rightId] = posA && posB && posA.x <= posB.x ? [a, b] : [b, a]
