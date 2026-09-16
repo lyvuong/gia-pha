@@ -272,6 +272,13 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   const positions = new Map<string, { x: number; y: number }>()
   const visited = new Set<string>()
   const dividerPositions: { x: number; y: number }[] = []
+  // A stacked wife's own "children channel" x (see the positioning loop below), keyed by
+  // her id. Computed alongside her position — not deferred to the edge-building pass —
+  // so the *next* generation's block ordering can anchor on it directly: her children's
+  // block needs to line up with where her channel line actually lands, not just with her
+  // (shared-with-her-sisters) raw x, or the block order could mismatch the channel order
+  // and the two would cross.
+  const channelXByWifeId = new Map<string, number>()
 
   for (const generation of generations) {
     const bandTop = bandTopOf.get(generation)!
@@ -288,7 +295,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       let anchorX: number
       if (withParents) {
         const validParents = withParents.parentIds.filter((p) => byId.has(p))
-        const parentXs = validParents.map((p) => positions.get(p)?.x ?? 0)
+        const parentXs = validParents.map((p) => channelXByWifeId.get(p) ?? positions.get(p)?.x ?? 0)
         anchorX = parentXs.reduce((a, b) => a + b, 0) / parentXs.length
       } else {
         anchorX = flat[0].birthDate ? Date.parse(flat[0].birthDate) : 0
@@ -313,14 +320,23 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           visited.add(item.anchor.id)
           cursorX += NODE_WIDTH + HORIZONTAL_GAP
           const stackX = cursorX
+          const wivesCount = item.wives.length
           item.wives.forEach((wife, wi) => {
             positions.set(wife.id, { x: stackX, y: bandTop + wi * ROW_HEIGHT })
             visited.add(wife.id)
+            // Each wife gets her own channel x for the line down to her children — the
+            // wife closest to the band's bottom gets the nearest one, each wife above her
+            // a bit further out, so a wife whose channel line must travel past another
+            // wife's row never overlaps that wife's own channel line: the wives it passes
+            // are always further down the stack, whose channel doesn't start until below
+            // the row it's passing through.
+            const reversedIndex = wivesCount - 1 - wi
+            channelXByWifeId.set(wife.id, stackX + NODE_WIDTH + HORIZONTAL_GAP / 2 + reversedIndex * CHANNEL_SPACING)
           })
           // Reserve one extra channel-width per wife beyond the stack's own column, so
-          // each wife's line down to her children (see the edge-building pass below) has
-          // its own clear lane before the next family block starts.
-          cursorX += NODE_WIDTH + HORIZONTAL_GAP + item.wives.length * CHANNEL_SPACING
+          // each wife's line down to her children has its own clear lane before the next
+          // family block starts.
+          cursorX += NODE_WIDTH + HORIZONTAL_GAP + wivesCount * CHANNEL_SPACING
         }
       }
     })
@@ -403,17 +419,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         style: { stroke: 'var(--color-gold-dark)' },
       })
       // This wife's own children exit her *right* edge (never straight down, which
-      // would run through whichever other wife is stacked below her) into a channel
-      // beside the stack, then turn down into the generation band below. Each wife gets
-      // her *own* channel x — the wife closest to the band's bottom gets the nearest
-      // one, each wife above her a bit further out — so a wife whose channel line must
-      // travel past another wife's row never overlaps that wife's own channel line: the
-      // wives it passes are always further down the stack, whose channel doesn't start
-      // until below the row it's passing through.
-      const wivesCount = spouseCountOf.get(unit.anchor.id)!
-      const wifeIndex = Math.round((spousePos.y - bandTop) / ROW_HEIGHT)
-      const reversedIndex = wivesCount - 1 - wifeIndex
-      const channelX = spousePos.x + NODE_WIDTH + HORIZONTAL_GAP / 2 + reversedIndex * CHANNEL_SPACING
+      // would run through whichever other wife is stacked below her) into her own
+      // channel (computed above, alongside her position), then turn down into the
+      // generation band below.
+      const channelX = channelXByWifeId.get(unit.spouse.id)!
       unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
       edges.push({
         id: `spouse-to-union-${unit.key}`,
