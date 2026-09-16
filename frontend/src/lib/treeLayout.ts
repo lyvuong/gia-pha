@@ -10,6 +10,9 @@ const ROW_HEIGHT = 180
  * root ancestors). A thin divider line (see `GROUP_DIVIDER_HEIGHT`) is centered in it. */
 const GROUP_GAP = HORIZONTAL_GAP + 40
 export const GROUP_DIVIDER_HEIGHT = NODE_HEIGHT + 48
+/** Horizontal distance between adjacent wives' own "children channel" lines (see
+ * `computeTreeLayout`) — just enough to keep them visually distinct as separate lines. */
+const CHANNEL_SPACING = 20
 
 /** Colorblind-safe (Okabe–Ito) palette assigned one-per-couple, cycling if there are
  * more couples than colors — so a union's spouse line, its own dot, and every line to
@@ -314,7 +317,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
             positions.set(wife.id, { x: stackX, y: bandTop + wi * ROW_HEIGHT })
             visited.add(wife.id)
           })
-          cursorX += NODE_WIDTH + HORIZONTAL_GAP
+          // Reserve one extra channel-width per wife beyond the stack's own column, so
+          // each wife's line down to her children (see the edge-building pass below) has
+          // its own clear lane before the next family block starts.
+          cursorX += NODE_WIDTH + HORIZONTAL_GAP + item.wives.length * CHANNEL_SPACING
         }
       }
     })
@@ -379,40 +385,50 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
     } else {
       // A remarried anchor's wives are stacked in one column to their right (see
-      // `blockOf`); a plain orthogonal line from the anchor's right edge into each
-      // wife's left edge naturally shares the same vertical segment for all of them
-      // (since every wife sits at the same x), reading as one shared spine without
-      // needing to draw it specially — and it never runs through another stacked wife,
-      // since that shared segment sits in the gap *between* the anchor and the stack,
-      // not at the stack's own column.
+      // `blockOf`). Every line from the anchor to a wife is pinned (via `centerX`) to
+      // the exact same x — the midpoint of the gap between the anchor and the stack —
+      // so all of them render as one shared vertical line with a short stub into each
+      // wife, rather than several independently-routed lines that only approximately
+      // coincide.
+      const bandTop = bandTopOf.get(unit.anchor.generation)!
+      const spineX = anchorPos.x + NODE_WIDTH + HORIZONTAL_GAP / 2
       edges.push({
         id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
         source: unit.anchor.id,
         sourceHandle: 'right',
         target: unit.spouse.id,
         targetHandle: 'left',
-        type: 'smoothstep',
-        style: { stroke: color },
+        type: 'elbowEdge',
+        data: { centerX: spineX },
+        style: { stroke: 'var(--color-gold-dark)' },
       })
       // This wife's own children exit her *right* edge (never straight down, which
-      // would run through whichever other wife is stacked below her) into the gap
-      // beside the stack, then turn down into the generation band below.
-      unionAnchorPos = { x: spousePos.x + NODE_WIDTH + HORIZONTAL_GAP / 2, y: bandTopOf.get(unit.anchor.generation)! + bandHeightOf.get(unit.anchor.generation)! }
-    }
-
-    const unionId = `union-${unit.key}`
-    nodes.push({ id: unionId, type: 'unionNode', position: unionAnchorPos, data: { color }, draggable: false, selectable: false })
-    if (stacked) {
+      // would run through whichever other wife is stacked below her) into a channel
+      // beside the stack, then turn down into the generation band below. Each wife gets
+      // her *own* channel x — the wife closest to the band's bottom gets the nearest
+      // one, each wife above her a bit further out — so a wife whose channel line must
+      // travel past another wife's row never overlaps that wife's own channel line: the
+      // wives it passes are always further down the stack, whose channel doesn't start
+      // until below the row it's passing through.
+      const wivesCount = spouseCountOf.get(unit.anchor.id)!
+      const wifeIndex = Math.round((spousePos.y - bandTop) / ROW_HEIGHT)
+      const reversedIndex = wivesCount - 1 - wifeIndex
+      const channelX = spousePos.x + NODE_WIDTH + HORIZONTAL_GAP / 2 + reversedIndex * CHANNEL_SPACING
+      unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
       edges.push({
         id: `spouse-to-union-${unit.key}`,
         source: unit.spouse.id,
         sourceHandle: 'right',
-        target: unionId,
+        target: `union-${unit.key}`,
         targetHandle: 'in',
-        type: 'smoothstep',
+        type: 'elbowEdge',
+        data: { centerX: channelX },
         style: { stroke: color },
       })
     }
+
+    const unionId = `union-${unit.key}`
+    nodes.push({ id: unionId, type: 'unionNode', position: unionAnchorPos, data: { color }, draggable: false, selectable: false })
     for (const child of unit.children) {
       edges.push({ id: `child-${unionId}-${child.id}`, source: unionId, target: child.id, type: 'smoothstep', style: { stroke: color } })
     }
