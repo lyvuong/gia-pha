@@ -116,16 +116,29 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     byGeneration.set(m.generation, list)
   }
 
-  const positions = new Map<string, { x: number; y: number }>()
+  // Pack each generation row left-to-right first (still needed to know each row's total
+  // width), then center every row on the widest one — otherwise a short row (e.g. an only
+  // child) stays left-aligned under a wider row of parents instead of centered under them,
+  // which is what made the tree look lopsided rather than balanced.
+  const rowMembers = new Map<number, Member[]>()
+  const rowWidths = new Map<number, number>()
   for (const [generation, list] of byGeneration.entries()) {
-    const y = (generation - minGeneration) * ROW_HEIGHT
     const sortedByDagreX = [...list].sort((a, b) => {
       const ax = g.node(a.id)?.x ?? 0
       const bx = g.node(b.id)?.x ?? 0
       return ax - bx
     })
     const sorted = withSpousesAdjacent(sortedByDagreX)
-    let cursorX = 0
+    rowMembers.set(generation, sorted)
+    rowWidths.set(generation, sorted.length * NODE_WIDTH + (sorted.length - 1) * HORIZONTAL_GAP)
+  }
+  const maxRowWidth = Math.max(...rowWidths.values())
+
+  const positions = new Map<string, { x: number; y: number }>()
+  for (const [generation, sorted] of rowMembers.entries()) {
+    const y = (generation - minGeneration) * ROW_HEIGHT
+    const rowOffset = (maxRowWidth - rowWidths.get(generation)!) / 2
+    let cursorX = rowOffset
     for (const m of sorted) {
       positions.set(m.id, { x: cursorX, y })
       cursorX += NODE_WIDTH + HORIZONTAL_GAP
