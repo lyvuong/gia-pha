@@ -332,6 +332,12 @@
   display: flex;
   gap: 6px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.education-row input {
+  flex: 1 1 100px;
+  min-width: 0;
 }
 
 .name-row {
@@ -352,7 +358,11 @@
 }
 
 .name-row button {
-  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
+.row-delete {
+  padding: 8px;
   flex-shrink: 0;
 }
 

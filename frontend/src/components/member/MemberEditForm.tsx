@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addMember, updateMember } from '../../hooks/useMembers'
 import { NAME_LABELS, type Education, type Member, type NameEntry, type NewMember } from '../../types/models'
+import { TrashIcon } from '../common/icons'
 import { PhotoUploader } from './PhotoUploader'
 
 interface MemberEditFormProps {
@@ -166,8 +167,14 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
               value={entry.value}
               onChange={(e) => updateNameRow(i, { value: e.target.value })}
             />
-            <button type="button" onClick={() => removeNameRow(i)}>
-              {t('member.delete')}
+            <button
+              type="button"
+              className="icon-button row-delete"
+              onClick={() => removeNameRow(i)}
+              title={t('member.delete')}
+              aria-label={t('member.delete')}
+            >
+              <TrashIcon size={15} />
             </button>
           </div>
         ))}
@@ -243,8 +250,14 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
               value={edu.school ?? ''}
               onChange={(e) => updateEducationRow(i, { school: e.target.value })}
             />
-            <button type="button" onClick={() => removeEducationRow(i)}>
-              {t('member.delete')}
+            <button
+              type="button"
+              className="icon-button row-delete"
+              onClick={() => removeEducationRow(i)}
+              title={t('member.delete')}
+              aria-label={t('member.delete')}
+            >
+              <TrashIcon size={15} />
             </button>
           </div>
         ))}
