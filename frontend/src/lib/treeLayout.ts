@@ -6,6 +6,12 @@ export const NODE_WIDTH = 200
 export const NODE_HEIGHT = 96
 const HORIZONTAL_GAP = 40
 const ROW_HEIGHT = 180
+/** Extra horizontal breathing room, on top of the normal sibling gap, wherever a row
+ * crosses from one parent-couple's family block into an unrelated one — makes it
+ * visually unambiguous which children belong to which parents. A thin divider line
+ * (see `GROUP_DIVIDER_HEIGHT`) is centered in this gap. */
+const GROUP_GAP = HORIZONTAL_GAP + 40
+export const GROUP_DIVIDER_HEIGHT = NODE_HEIGHT + 48
 
 export interface TreeNodeData extends Record<string, unknown> {
   member?: Member
@@ -169,6 +175,47 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return result
   }
 
+  /** Groups a row into visual "family blocks" — a sibling set plus any spouses they
+   * married in — via union-find over sibling and spouse links, so a boundary between
+   * two unrelated blocks (e.g. children of two different parent-couples sitting side
+   * by side) can be given extra spacing and a divider line. A childless couple with no
+   * recorded parents of their own (e.g. the tree's root pair) is just one block, not
+   * split from itself. */
+  function clusterKeysFor(row: Member[]): Map<string, string> {
+    const parent = new Map<string, string>(row.map((m) => [m.id, m.id]))
+    const find = (id: string): string => {
+      const p = parent.get(id) ?? id
+      if (p === id) return id
+      const root = find(p)
+      parent.set(id, root)
+      return root
+    }
+    const union = (a: string, b: string) => {
+      const ra = find(a)
+      const rb = find(b)
+      if (ra !== rb) parent.set(ra, rb)
+    }
+
+    const byKey = new Map<string, string[]>()
+    for (const m of row) {
+      const key = siblingKey(m)
+      if (!key) continue
+      byKey.set(key, [...(byKey.get(key) ?? []), m.id])
+    }
+    for (const ids of byKey.values()) {
+      for (let i = 1; i < ids.length; i++) union(ids[0], ids[i])
+    }
+
+    const idsInRow = new Set(row.map((m) => m.id))
+    for (const m of row) {
+      for (const s of spousesOf.get(m.id) ?? []) {
+        if (idsInRow.has(s)) union(m.id, s)
+      }
+    }
+
+    return new Map(row.map((m) => [m.id, find(m.id)]))
+  }
+
   const minGeneration = Math.min(...members.map((m) => m.generation))
   const byGeneration = new Map<number, Member[]>()
   for (const m of members) {
@@ -182,6 +229,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // child) stays left-aligned under a wider row of parents instead of centered under them,
   // which is what made the tree look lopsided rather than balanced.
   const rowMembers = new Map<number, Member[]>()
+  const rowGaps = new Map<number, number[]>()
   const rowWidths = new Map<number, number>()
   for (const [generation, list] of byGeneration.entries()) {
     const sortedByDagreX = [...list].sort((a, b) => {
@@ -190,20 +238,29 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       return ax - bx
     })
     const sorted = withSpousesAdjacent(orderSiblingsByBirth(sortedByDagreX))
+    const clusterOf = clusterKeysFor(sorted)
+    const gaps = sorted.slice(1).map((m, i) => (clusterOf.get(sorted[i].id) === clusterOf.get(m.id) ? HORIZONTAL_GAP : GROUP_GAP))
     rowMembers.set(generation, sorted)
-    rowWidths.set(generation, sorted.length * NODE_WIDTH + (sorted.length - 1) * HORIZONTAL_GAP)
+    rowGaps.set(generation, gaps)
+    rowWidths.set(generation, sorted.length * NODE_WIDTH + gaps.reduce((sum, gap) => sum + gap, 0))
   }
   const maxRowWidth = Math.max(...rowWidths.values())
 
   const positions = new Map<string, { x: number; y: number }>()
+  const dividerPositions: { x: number; y: number }[] = []
   for (const [generation, sorted] of rowMembers.entries()) {
     const y = (generation - minGeneration) * ROW_HEIGHT
     const rowOffset = (maxRowWidth - rowWidths.get(generation)!) / 2
+    const gaps = rowGaps.get(generation)!
     let cursorX = rowOffset
-    for (const m of sorted) {
+    sorted.forEach((m, i) => {
       positions.set(m.id, { x: cursorX, y })
-      cursorX += NODE_WIDTH + HORIZONTAL_GAP
-    }
+      const gap = gaps[i]
+      if (gap !== undefined) {
+        if (gap === GROUP_GAP) dividerPositions.push({ x: cursorX + NODE_WIDTH + gap / 2, y })
+        cursorX += NODE_WIDTH + gap
+      }
+    })
   }
 
   const genOffset = generationOffset(members)
@@ -213,6 +270,17 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     position: positions.get(m.id) ?? { x: 0, y: 0 },
     data: { member: m, displayGeneration: m.generation + genOffset },
   }))
+
+  dividerPositions.forEach((pos, i) => {
+    nodes.push({
+      id: `divider-${i}`,
+      type: 'groupDivider',
+      position: { x: pos.x, y: pos.y - (GROUP_DIVIDER_HEIGHT - NODE_HEIGHT) / 2 },
+      data: {},
+      draggable: false,
+      selectable: false,
+    })
+  })
 
   const edges: TreeEdge[] = []
   const unionNodeIds = new Map<string, string>()

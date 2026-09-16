@@ -195,6 +195,12 @@
   height: 1px;
 }
 
+.group-divider {
+  width: 0;
+  border-left: 1px dashed var(--color-border);
+  pointer-events: none;
+}
+
 .spouse-edge {
   stroke: var(--color-gold-dark);
   stroke-width: 2;

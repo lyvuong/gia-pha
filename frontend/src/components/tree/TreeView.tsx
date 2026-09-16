@@ -9,11 +9,12 @@ import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, type Ref } from 'react'
 import { computeTreeLayout, NODE_HEIGHT, NODE_WIDTH } from '../../lib/treeLayout'
 import type { Member } from '../../types/models'
+import { GroupDivider } from './GroupDivider'
 import { MemberNode } from './MemberNode'
 import { SpouseEdge } from './SpouseEdge'
 import { UnionNode } from './UnionNode'
 
-const nodeTypes = { memberNode: MemberNode, unionNode: UnionNode }
+const nodeTypes = { memberNode: MemberNode, unionNode: UnionNode, groupDivider: GroupDivider }
 const edgeTypes = { spouseEdge: SpouseEdge }
 
 interface CenterOnMemberProps {
