@@ -37,9 +37,6 @@ function emptyDraft(overrides?: Partial<NewMember>): NewMember {
   }
 }
 
-function selectedOptions(select: HTMLSelectElement): string[] {
-  return Array.from(select.selectedOptions).map((o) => o.value)
-}
 
 export function MemberEditForm({ giaPhaId, member, members, currentUid, initialDraft, onSaved, onCancel }: MemberEditFormProps) {
   const { t } = useTranslation()
@@ -78,6 +75,14 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
 
   function updateField<K extends keyof NewMember>(key: K, value: NewMember[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
+  }
+
+  function addRelation(field: 'parentIds' | 'spouseIds', id: string) {
+    setDraft((d) => (d[field].includes(id) ? d : { ...d, [field]: [...d[field], id] }))
+  }
+
+  function removeRelation(field: 'parentIds' | 'spouseIds', id: string) {
+    setDraft((d) => ({ ...d, [field]: d[field].filter((existingId) => existingId !== id) }))
   }
 
   function updateEducationRow(index: number, patch: Partial<Education>) {
@@ -230,31 +235,67 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
         <textarea value={draft.notes} onChange={(e) => updateField('notes', e.target.value)} rows={2} />
       </label>
 
-      <label>
-        {t('member.parents')}
-        <select
-          multiple
-          value={draft.parentIds}
-          onChange={(e) => updateField('parentIds', selectedOptions(e.target))}
-        >
-          {parentCandidates.map((m) => (
-            <option key={m.id} value={m.id}>{m.fullName}</option>
-          ))}
-        </select>
-      </label>
+      <div className="relation-field">
+        <span className="relation-field-label">{t('member.parents')}</span>
+        <div className="relation-chips">
+          {draft.parentIds.map((id) => {
+            const m = members.find((mm) => mm.id === id)
+            if (!m) return null
+            return (
+              <span key={id} className="relation-chip">
+                {m.fullName}
+                <button type="button" onClick={() => removeRelation('parentIds', id)} aria-label={t('member.delete')}>
+                  ×
+                </button>
+              </span>
+            )
+          })}
+        </div>
+        {parentCandidates.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) addRelation('parentIds', e.target.value)
+            }}
+          >
+            <option value="">{t('member.addParent')}</option>
+            {parentCandidates.map((m) => (
+              <option key={m.id} value={m.id}>{m.fullName}</option>
+            ))}
+          </select>
+        )}
+      </div>
 
-      <label>
-        {t('member.spouses')}
-        <select
-          multiple
-          value={draft.spouseIds}
-          onChange={(e) => updateField('spouseIds', selectedOptions(e.target))}
-        >
-          {spouseCandidates.map((m) => (
-            <option key={m.id} value={m.id}>{m.fullName}</option>
-          ))}
-        </select>
-      </label>
+      <div className="relation-field">
+        <span className="relation-field-label">{t('member.spouses')}</span>
+        <div className="relation-chips">
+          {draft.spouseIds.map((id) => {
+            const m = members.find((mm) => mm.id === id)
+            if (!m) return null
+            return (
+              <span key={id} className="relation-chip">
+                {m.fullName}
+                <button type="button" onClick={() => removeRelation('spouseIds', id)} aria-label={t('member.delete')}>
+                  ×
+                </button>
+              </span>
+            )
+          })}
+        </div>
+        {spouseCandidates.length > 0 && (
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) addRelation('spouseIds', e.target.value)
+            }}
+          >
+            <option value="">{t('member.addSpouse')}</option>
+            {spouseCandidates.map((m) => (
+              <option key={m.id} value={m.id}>{m.fullName}</option>
+            ))}
+          </select>
+        )}
+      </div>
 
       <label>
         {t('member.bio')}

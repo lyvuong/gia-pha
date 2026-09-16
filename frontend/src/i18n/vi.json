@@ -42,6 +42,8 @@
     "photo": "Ảnh",
     "parents": "Cha mẹ",
     "spouses": "Vợ/Chồng",
+    "addParent": "+ Thêm cha/mẹ",
+    "addSpouse": "+ Thêm vợ/chồng",
     "save": "Lưu",
     "cancel": "Hủy",
     "edit": "Chỉnh sửa",

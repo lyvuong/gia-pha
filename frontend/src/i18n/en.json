@@ -42,6 +42,8 @@
     "photo": "Photo",
     "parents": "Parents",
     "spouses": "Spouses",
+    "addParent": "+ Add parent",
+    "addSpouse": "+ Add spouse",
     "save": "Save",
     "cancel": "Cancel",
     "edit": "Edit",
