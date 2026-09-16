@@ -18,6 +18,11 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
       <Handle type="target" position={Position.Top} />
       <Handle type="target" id="left" position={Position.Left} />
       <Handle type="source" id="left" position={Position.Left} />
+      {member.gender && (
+        <span className={`member-node-gender member-node-gender-${member.gender}`} title={t(`member.${member.gender}`)}>
+          {member.gender === 'male' ? '♂' : '♀'}
+        </span>
+      )}
       <Avatar name={birthName ?? member.fullName} photoUrl={member.photoUrl} size={44} />
       <div className="member-node-info">
         <div className="member-node-name">{birthName ?? member.fullName}</div>

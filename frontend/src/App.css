@@ -147,6 +147,7 @@
 
 /* Member node */
 .member-node {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -156,6 +157,32 @@
   padding: 8px 12px;
   width: 200px;
   box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+.member-node-gender {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-panel-bg);
+  border: 1.5px solid currentColor;
+  box-shadow: 0 1px 3px var(--color-shadow);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.member-node-gender-male {
+  color: var(--color-gender-male);
+}
+
+.member-node-gender-female {
+  color: var(--color-gender-female);
 }
 
 .member-node-selected {

@@ -11,6 +11,8 @@
   --color-border: #E5DED4;
   --color-shadow: rgba(0, 0, 0, 0.08);
   --color-error: #B3261E;
+  --color-gender-male: #0072B2;
+  --color-gender-female: #CC79A7;
 
   font-family: 'Inter', 'Noto Sans', system-ui, sans-serif;
   color-scheme: light;
@@ -25,6 +27,10 @@
   --color-border: #3A2E28;
   --color-shadow: rgba(0, 0, 0, 0.35);
   --color-error: #E5695F;
+  /* Brighter than the light-theme versions — the plain Okabe-Ito blue/mauve read as
+     muddy against the dark panel background. */
+  --color-gender-male: #6BB8E8;
+  --color-gender-female: #E8A6CC;
 
   color-scheme: dark;
 }
