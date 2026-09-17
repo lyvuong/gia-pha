@@ -67,6 +67,17 @@ interface Point {
   y: number
 }
 
+/** `centerX` alone means the classic single-bend elbow (horizontal out of the source,
+ * vertical, horizontal into the target). `viaY` adds a detour row: vertical out of the
+ * source first, over at `viaY`, then vertical again at `centerX` into the target — for
+ * when the source's own row is blocked for the entire width to the target (see
+ * `pickClearRoute`). Deliberately carries no source/target y of its own — see
+ * `ElbowEdge` for why baking in an estimate of the endpoint's own position is a bug. */
+interface Route extends Record<string, unknown> {
+  centerX: number
+  viaY?: number
+}
+
 function hSegmentClearsBoxes(x0: number, x1: number, y: number, boxes: { x: number; y: number }[]): boolean {
   const lo = Math.min(x0, x1)
   const hi = Math.max(x0, x1)
@@ -105,24 +116,14 @@ function routeIsClear(sourceX: number, sourceY: number, bendX: number, targetX: 
  * that bend is chosen. When every single-bend option fails, this ducks to a nearby row
  * that's clear before crossing over, adding one extra corner rather than leaving the line
  * to cut through whatever's in the way. */
-function pickClearRoute(sourceX: number, sourceY: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): Point[] {
+function pickClearRoute(sourceX: number, sourceY: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): Route {
   for (const bendX of [targetX, sourceX]) {
-    if (routeIsClear(sourceX, sourceY, bendX, targetX, targetY, boxes)) {
-      return [
-        { x: bendX, y: sourceY },
-        { x: bendX, y: targetY },
-      ]
-    }
+    if (routeIsClear(sourceX, sourceY, bendX, targetX, targetY, boxes)) return { centerX: bendX }
   }
   const dir = targetX >= sourceX ? 1 : -1
   for (let step = 1; step <= 40; step++) {
     const bendX = targetX + dir * step * (HORIZONTAL_GAP / 2)
-    if (routeIsClear(sourceX, sourceY, bendX, targetX, targetY, boxes)) {
-      return [
-        { x: bendX, y: sourceY },
-        { x: bendX, y: targetY },
-      ]
-    }
+    if (routeIsClear(sourceX, sourceY, bendX, targetX, targetY, boxes)) return { centerX: bendX }
   }
 
   const rowDir = targetY >= sourceY ? 1 : -1
@@ -132,29 +133,23 @@ function pickClearRoute(sourceX: number, sourceY: number, targetX: number, targe
     if (rowDir > 0 ? viaY >= targetY : viaY <= targetY) break
     if (!vSegmentClearsBoxes(sourceX, sourceY, viaY, boxes)) continue
     for (const bendX of [targetX, sourceX]) {
-      if (routeIsClear(sourceX, viaY, bendX, targetX, targetY, boxes)) {
-        return [
-          { x: sourceX, y: viaY },
-          { x: bendX, y: viaY },
-          { x: bendX, y: targetY },
-        ]
-      }
+      if (routeIsClear(sourceX, viaY, bendX, targetX, targetY, boxes)) return { centerX: bendX, viaY }
     }
   }
 
-  return [
-    { x: targetX, y: sourceY },
-    { x: targetX, y: targetY },
-  ]
+  return { centerX: targetX }
 }
 
-/** A point guaranteed to sit on a `pickClearRoute` path, for placing a union dot
- * somewhere that's actually on the line it belongs to rather than floating beside it —
- * the midpoint of the vertical leg for a plain single-bend route (matching the classic
- * "dot centered between the couple" look), or the elbow itself for a detour route. */
-function midpointOnRoute(route: Point[]): Point {
-  if (route.length === 2) return { x: route[0].x, y: (route[0].y + route[1].y) / 2 }
-  return route[1]
+/** A point close to a `pickClearRoute` path, for placing a union dot near the line it
+ * belongs to — the midpoint between source and target for a plain single-bend route
+ * (matching the classic "dot centered between the couple" look), or the detour's own
+ * elbow for a route that had to duck around something. Uses the layout's own estimate of
+ * each endpoint's position (not react-flow's measured one, which this function has no
+ * access to) — close enough for placing a *draggable* node, unlike the line itself, which
+ * must be pixel-exact (see `ElbowEdge`). */
+function midpointOnRoute(route: Route, sourceY: number, targetY: number): Point {
+  if (route.viaY === undefined) return { x: route.centerX, y: (sourceY + targetY) / 2 }
+  return { x: route.centerX, y: route.viaY }
 }
 
 function compareBirthOrder(a: Member, b: Member): number {
@@ -552,12 +547,12 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         target: unit.spouse.id,
         targetHandle: spouseSide,
         type: 'elbowEdge',
-        data: { points: marriageRoute },
+        data: marriageRoute,
         style: { stroke: color },
       })
       // Sits on the marriage line's own route, wherever that ended up, so the dot is
       // never left floating off to the side of the line it's supposed to be on.
-      unionAnchorPos = midpointOnRoute(marriageRoute)
+      unionAnchorPos = midpointOnRoute(marriageRoute, anchorMidY, spouseMidY)
       needsUnionEdge = true
     } else if (!stacked) {
       // An ordinary, adjacent couple: a plain straight marriage line, and their shared
@@ -626,12 +621,9 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         // The pinned-channel case (unionEdgeCenterX already set) is already proven
         // crossing-free by construction; anything else is free-form, so pick a route
         // that clears every other member's box the same way the marriage line does.
-        const points =
+        const route: Route =
           unionEdgeCenterX !== undefined
-            ? [
-                { x: unionEdgeCenterX, y: sourceMidY },
-                { x: unionEdgeCenterX, y: unionAnchorPos.y },
-              ]
+            ? { centerX: unionEdgeCenterX }
             : pickClearRoute(sourceHandleX, sourceMidY, unionAnchorPos.x, unionAnchorPos.y, memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])))
         edges.push({
           id: `spouse-to-union-${unit.key}`,
@@ -640,7 +632,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           target: unionId,
           targetHandle: 'in',
           type: 'elbowEdge',
-          data: { points },
+          data: route,
           style: { stroke: color },
         })
       }
@@ -671,7 +663,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           source: unionId,
           target: child.id,
           type: 'elbowEdge',
-          data: { points: route },
+          data: route,
           style: { stroke: color },
         })
       }
@@ -690,7 +682,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         childPos.y,
         memberBoxesExcept(new Set([unit.anchor.id, child.id])),
       )
-      edges.push({ id: `child-${unit.anchor.id}-${child.id}`, source: unit.anchor.id, target: child.id, type: 'elbowEdge', data: { points: route } })
+      edges.push({ id: `child-${unit.anchor.id}-${child.id}`, source: unit.anchor.id, target: child.id, type: 'elbowEdge', data: route })
     }
   }
 
