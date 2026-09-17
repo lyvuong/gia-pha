@@ -671,9 +671,15 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         // This wife's own children exit her *right* edge (never straight down, which
         // would run through whichever other wife is stacked below her) into her own
         // channel (computed above, alongside her position), then turn down into the
-        // generation band below.
+        // generation band below — stopping short of the band's true bottom edge (where
+        // the children's own row starts) by a couple of leader-lengths, so the
+        // union-to-child trunk below still has room for a real, visible stub into each
+        // child. Landing exactly on the children's row, as this used to, left
+        // `pickClearSharedBarY` no space to place a leadered bar at all, so the trunk
+        // rendered flush against the children's own top edge — indistinguishable from
+        // their boxes' border, making it unreadable which boxes it actually connected to.
         const channelX = channelXByWifeId.get(unit.spouse.id)!
-        unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
+        unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! - 2 * MIN_LEADER }
         needsUnionEdge = true
         unionEdgeCenterX = channelX
       } else {
