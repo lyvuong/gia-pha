@@ -179,22 +179,28 @@ function pickClearRoute(
   return { centerX: mid }
 }
 
-/** Where a vertical-leadered elbow connector (a union or a solo parent down to a child —
- * always joined on their top/bottom edges) should jog, so the leg leaving the source and
- * the leg entering the target both run a real vertical distance before turning: prefers
- * the row midway between the two generations (equal leaders on both sides), searching
- * outward when that row is blocked. Always keeps the leaving leg at the source's own x
- * and the entering leg at the target's own x — never a diagonal-risking estimate of
- * either — so this only ever needs to find a clear row, not a clear column too. Siblings
- * sharing the same source and the same generation naturally resolve to the very same
- * row, merging what would otherwise be several near-identical parallel lines into one
- * shared trunk. */
-function pickClearBarY(sourceX: number, sourceY: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): number {
+/** Where a vertical-leadered elbow connector (a union or a solo parent down to a group of
+ * children — always joined on their top/bottom edges) should jog, so the leg leaving the
+ * source and each leg entering a child both run a real vertical distance before turning:
+ * prefers the row midway between the two generations (equal leaders on both sides),
+ * searching outward when that row is blocked. Always keeps the leaving leg at the
+ * source's own x and each entering leg at that child's own x — never a diagonal-risking
+ * estimate of either — so this only ever needs to find a clear row, not a clear column
+ * too. Checking every child in the group together (rather than one at a time) guarantees
+ * they land on the very same row even when one of them individually would have had to
+ * duck somewhere the others didn't — merging what would otherwise be several
+ * near-identical parallel lines into one shared trunk. */
+function pickClearSharedBarY(sourceX: number, sourceY: number, targets: { x: number; y: number }[], boxes: { x: number; y: number }[]): number {
+  const targetY = targets[0].y
+  const spanLo = Math.min(sourceX, ...targets.map((t) => t.x))
+  const spanHi = Math.max(sourceX, ...targets.map((t) => t.x))
   const mid = (sourceY + targetY) / 2
   const lo = Math.min(sourceY, targetY)
   const hi = Math.max(sourceY, targetY)
   const isClear = (y: number) =>
-    vSegmentClearsBoxes(sourceX, sourceY, y, boxes) && hSegmentClearsBoxes(sourceX, targetX, y, boxes) && vSegmentClearsBoxes(targetX, y, targetY, boxes)
+    vSegmentClearsBoxes(sourceX, sourceY, y, boxes) &&
+    hSegmentClearsBoxes(spanLo, spanHi, y, boxes) &&
+    targets.every((t) => vSegmentClearsBoxes(t.x, y, t.y, boxes))
   const barY = searchOutward(
     mid,
     ROW_HEIGHT / 12,
@@ -526,6 +532,55 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
+  // A manually placed member that's just a few pixels off from lining up with whoever
+  // it connects to still gets a real bend in the line for that tiny gap — which reads as
+  // an arbitrary stair-step, not a deliberate route. Snap gaps that small away entirely
+  // by nudging *only* the manually placed member (never an automatically placed one,
+  // which would disturb the row-band guarantees the rest of the layout relies on), and
+  // only when nothing else already occupies the spot it would move into.
+  const SNAP_GAP = 24
+
+  function boxesOverlap(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
+    return a.x < b.x + NODE_WIDTH && a.x + NODE_WIDTH > b.x && a.y < b.y + NODE_HEIGHT && a.y + NODE_HEIGHT > b.y
+  }
+
+  function canMoveTo(id: string, candidate: { x: number; y: number }): boolean {
+    for (const [otherId, pos] of positions) {
+      if (otherId !== id && boxesOverlap(candidate, pos)) return false
+    }
+    return true
+  }
+
+  function snapIfClose(moverId: string, axis: 'x' | 'y', targetValue: number) {
+    if (!overridden.has(moverId)) return
+    const pos = positions.get(moverId)
+    if (!pos) return
+    const gap = targetValue - pos[axis]
+    if (gap === 0 || Math.abs(gap) > SNAP_GAP) return
+    const candidate = axis === 'y' ? { x: pos.x, y: targetValue } : { x: targetValue, y: pos.y }
+    if (canMoveTo(moverId, candidate)) positions.set(moverId, candidate)
+  }
+
+  for (const unit of unitsByKey.values()) {
+    const anchorPos = positions.get(unit.anchor.id)
+    if (!anchorPos) continue
+    const spousePos = unit.spouse ? positions.get(unit.spouse.id) : undefined
+    if (unit.spouse && spousePos) {
+      // Prefer moving whichever side was actually dragged onto the other's row; if both
+      // were, move the spouse (an arbitrary but consistent choice) onto the anchor's.
+      if (overridden.has(unit.spouse.id)) snapIfClose(unit.spouse.id, 'y', anchorPos.y)
+      else snapIfClose(unit.anchor.id, 'y', spousePos.y)
+    }
+    // Approximates where this unit's union sits (or the parent's own center, for a solo
+    // parent) — close enough to tell whether a dragged child is already almost lined up
+    // with it, even though the union's exact position isn't settled until the edges
+    // below are built.
+    const sourceCenterX = spousePos ? (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2 : anchorPos.x + NODE_WIDTH / 2
+    for (const child of unit.children) {
+      snapIfClose(child.id, 'x', sourceCenterX - NODE_WIDTH / 2)
+    }
+  }
+
   let colorIndex = 0
   const unionColors = new Map<string, string>()
   for (const unit of unitsByKey.values()) {
@@ -725,42 +780,68 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         draggable: true,
         selectable: false,
       })
+      // A child can be manually dragged too, same as anyone else — react-flow's own
+      // `smoothstep` router doesn't know about other members' boxes, so a dragged child
+      // could end up with a line cutting through somebody else's. Route it the same
+      // box-avoiding way as every other free-form connector — vertically leadered on
+      // both ends, since a union's and a child's own handles both face top/bottom — and
+      // group siblings by their actual rendered row (not just the layout's generation
+      // band, since a dragged child can land anywhere) so each group shares one bar
+      // (see `pickClearSharedBarY`) instead of each child computing its own separately.
+      const childBoxes = memberBoxesExcept(new Set(unit.children.map((c) => c.id)))
+      const childrenByRow = new Map<number, Member[]>()
       for (const child of unit.children) {
-        // A child can be manually dragged too, same as anyone else — react-flow's own
-        // `smoothstep` router doesn't know about other members' boxes, so a dragged
-        // child could end up with a line cutting through somebody else's. Route it the
-        // same box-avoiding way as every other free-form connector — vertically leadered
-        // on both ends, since a union's and a child's own handles both face top/bottom.
-        const childPos = positions.get(child.id)!
-        const childCenterX = childPos.x + NODE_WIDTH / 2
-        const barY = pickClearBarY(unionAnchorPos.x, unionAnchorPos.y, childCenterX, childPos.y, memberBoxesExcept(new Set([child.id])))
-        edges.push({
-          id: `child-${unionId}-${child.id}`,
-          source: unionId,
-          target: child.id,
-          type: 'elbowEdge',
-          data: { centerX: childCenterX, viaY: barY },
-          style: { stroke: color },
+        const y = positions.get(child.id)!.y
+        childrenByRow.set(y, [...(childrenByRow.get(y) ?? []), child])
+      }
+      for (const rowChildren of childrenByRow.values()) {
+        const targets = rowChildren.map((c) => {
+          const p = positions.get(c.id)!
+          return { x: p.x + NODE_WIDTH / 2, y: p.y }
         })
+        const barY = pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes)
+        for (const child of rowChildren) {
+          const childCenterX = positions.get(child.id)!.x + NODE_WIDTH / 2
+          edges.push({
+            id: `child-${unionId}-${child.id}`,
+            source: unionId,
+            target: child.id,
+            type: 'elbowEdge',
+            data: { centerX: childCenterX, viaY: barY },
+            style: { stroke: color },
+          })
+        }
       }
     }
   }
 
   for (const unit of unitsByKey.values()) {
     if (unit.spouse) continue
+    const parentPos = positions.get(unit.anchor.id)!
+    const parentBottomX = parentPos.x + NODE_WIDTH / 2
+    const parentBottomY = parentPos.y + NODE_HEIGHT
+    const childBoxes = memberBoxesExcept(new Set([unit.anchor.id, ...unit.children.map((c) => c.id)]))
+    const childrenByRow = new Map<number, Member[]>()
     for (const child of unit.children) {
-      const parentPos = positions.get(unit.anchor.id)!
-      const childPos = positions.get(child.id)!
-      const parentBottomX = parentPos.x + NODE_WIDTH / 2
-      const childCenterX = childPos.x + NODE_WIDTH / 2
-      const barY = pickClearBarY(parentBottomX, parentPos.y + NODE_HEIGHT, childCenterX, childPos.y, memberBoxesExcept(new Set([unit.anchor.id, child.id])))
-      edges.push({
-        id: `child-${unit.anchor.id}-${child.id}`,
-        source: unit.anchor.id,
-        target: child.id,
-        type: 'elbowEdge',
-        data: { centerX: childCenterX, viaY: barY },
+      const y = positions.get(child.id)!.y
+      childrenByRow.set(y, [...(childrenByRow.get(y) ?? []), child])
+    }
+    for (const rowChildren of childrenByRow.values()) {
+      const targets = rowChildren.map((c) => {
+        const p = positions.get(c.id)!
+        return { x: p.x + NODE_WIDTH / 2, y: p.y }
       })
+      const barY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
+      for (const child of rowChildren) {
+        const childCenterX = positions.get(child.id)!.x + NODE_WIDTH / 2
+        edges.push({
+          id: `child-${unit.anchor.id}-${child.id}`,
+          source: unit.anchor.id,
+          target: child.id,
+          type: 'elbowEdge',
+          data: { centerX: childCenterX, viaY: barY },
+        })
+      }
     }
   }
 
