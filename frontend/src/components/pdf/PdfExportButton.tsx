@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { exportGiaPhaPdf } from '../../lib/pdfExport'
 import type { Member } from '../../types/models'
 import { ExportIcon } from '../common/icons'
 
@@ -19,6 +18,9 @@ export function PdfExportButton({ giaPhaName, members, treeContainerRef }: PdfEx
     if (!el) return
     setExporting(true)
     try {
+      // jsPDF, html2canvas, and the embedded Vietnamese font are only needed for this
+      // one action — dynamic import keeps them out of the main bundle.
+      const { exportGiaPhaPdf } = await import('../../lib/pdfExport')
       await exportGiaPhaPdf(giaPhaName, members, el, t, i18n.language)
     } finally {
       setExporting(false)
