@@ -13,6 +13,12 @@ export const GROUP_DIVIDER_HEIGHT = NODE_HEIGHT + 48
 /** Horizontal distance between adjacent wives' own "children channel" lines (see
  * `computeTreeLayout`) — just enough to keep them visually distinct as separate lines. */
 const CHANNEL_SPACING = 20
+/** Vertical distance from one stacked spouse's box to the next one below them in the same
+ * stack — a minimum margin, not a full `ROW_HEIGHT`: unlike two different generations,
+ * two stacked spouses have no children or connectors of their own sitting *between*
+ * them, so there's nothing that needs a whole extra row's worth of room, just enough gap
+ * to read as separate boxes. */
+const WIFE_STACK_STEP = NODE_HEIGHT + HORIZONTAL_GAP
 
 /** Colorblind-safe (Okabe–Ito) palette assigned one-per-couple, cycling if there are
  * more couples than colors — so a union's spouse line, its own dot, and every line to
@@ -475,11 +481,15 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   const generations = [...byGeneration.keys()].sort((a, b) => a - b)
 
   // A generation's band is normally one row tall, but grows taller (never wider) to fit
-  // whichever of its members has the most wives stacked under them.
+  // whichever of its members has the most wives stacked under them — by the tighter
+  // `WIFE_STACK_STEP` per extra wife, not a full extra `ROW_HEIGHT`, since only the very
+  // last wife in the tallest stack needs the same trailing `ROW_HEIGHT` worth of room the
+  // single-spouse case gets, for the union-to-children trunk routing that lives there
+  // (see `trunkRowByWifeId`) — the wives above her don't.
   const bandHeightOf = new Map<number, number>()
   for (const generation of generations) {
     const maxWives = Math.max(1, ...byGeneration.get(generation)!.map((m) => spouseCountOf.get(m.id) ?? 1))
-    bandHeightOf.set(generation, maxWives * ROW_HEIGHT)
+    bandHeightOf.set(generation, (maxWives - 1) * WIFE_STACK_STEP + ROW_HEIGHT)
   }
   const bandTopOf = new Map<number, number>()
   let cumulativeY = 0
@@ -571,7 +581,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           const stackX = cursorX
           const wivesCount = item.wives.length
           item.wives.forEach((wife, wi) => {
-            positions.set(wife.id, { x: stackX, y: bandTop + wi * ROW_HEIGHT })
+            positions.set(wife.id, { x: stackX, y: bandTop + wi * WIFE_STACK_STEP })
             visited.add(wife.id)
             // Each wife gets her own channel x for the line down to her children — the
             // wife closest to the band's bottom gets the nearest one, each wife above her
@@ -685,6 +695,34 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     const list: { x: number; y: number }[] = []
     for (const [id, pos] of positions) if (!excludeIds.has(id)) list.push(pos)
     return list
+  }
+
+  /** Pushes one shared "trunk" edge (`sourceId` straight down to `barY`, then the full
+   * horizontal bar spanning every child in `rowChildren`) plus one short "leg" edge per
+   * child (bar down to that child alone) — rather than each child's own edge retracing
+   * the whole shared leg on its own, which drew that shared portion once per child and
+   * rendered visibly thicker near `sourceId` than out at the single farthest child. */
+  function pushChildTrunkAndLegs(sourceId: string, sourceX: number, barY: number, rowChildren: Member[], color: string | undefined, idPrefix: string) {
+    const childXs = rowChildren.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
+    const style = color ? { stroke: color } : undefined
+    edges.push({
+      id: `trunk-${idPrefix}-${rowChildren[0].id}`,
+      source: sourceId,
+      target: rowChildren[0].id,
+      type: 'elbowEdge',
+      data: { viaY: barY, spanLoX: Math.min(sourceX, ...childXs), spanHiX: Math.max(sourceX, ...childXs) },
+      style,
+    })
+    for (const child of rowChildren) {
+      edges.push({
+        id: `child-${idPrefix}-${child.id}`,
+        source: sourceId,
+        target: child.id,
+        type: 'elbowEdge',
+        data: { centerX: positions.get(child.id)!.x + NODE_WIDTH / 2, viaY: barY, legOnly: true },
+        style,
+      })
+    }
   }
 
   // Which "trunk row" (0 = closest to the children's own row, 1 = one step further up,
@@ -904,17 +942,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         // which barely differ), undoing the separation the dots were just given and
         // crossing another wife's bar or channel right through the middle.
         const barY = stacked ? unionAnchorPos.y + MIN_LEADER : pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes)
-        for (const child of rowChildren) {
-          const childCenterX = positions.get(child.id)!.x + NODE_WIDTH / 2
-          edges.push({
-            id: `child-${unionId}-${child.id}`,
-            source: unionId,
-            target: child.id,
-            type: 'elbowEdge',
-            data: { centerX: childCenterX, viaY: barY },
-            style: { stroke: color },
-          })
-        }
+        pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
       }
     }
   }
@@ -936,16 +964,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         return { x: p.x + NODE_WIDTH / 2, y: p.y }
       })
       const barY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
-      for (const child of rowChildren) {
-        const childCenterX = positions.get(child.id)!.x + NODE_WIDTH / 2
-        edges.push({
-          id: `child-${unit.anchor.id}-${child.id}`,
-          source: unit.anchor.id,
-          target: child.id,
-          type: 'elbowEdge',
-          data: { centerX: childCenterX, viaY: barY },
-        })
-      }
+      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, barY, rowChildren, undefined, unit.anchor.id)
     }
   }
 

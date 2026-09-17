@@ -17,9 +17,34 @@ import type { EdgeProps } from '@xyflow/react'
  * source/target y, which was *usually* right but occasionally a few pixels off from the
  * real measured handle (box height isn't perfectly fixed), turning what should be a
  * horizontal or vertical leg into a barely-visible diagonal. */
+interface ElbowEdgeData extends Record<string, unknown> {
+  centerX?: number
+  viaY?: number
+  /** Trunk/spine mode: several children sharing one source draw their *shared* leg
+   * (source straight down to `viaY`, then the full horizontal bar under all of them) only
+   * once, via a single edge carrying this — see `legOnly` for the rest. Without this
+   * split, every one of N children's own full path retraced that same shared leg, so it
+   * rendered N times thicker near the source than out at the single farthest child, where
+   * only one child's path still reached. */
+  spanLoX?: number
+  spanHiX?: number
+  /** The complement of `spanLoX`/`spanHiX`: this child's own short branch down from the
+   * shared bar (already drawn by the trunk edge) to itself — deliberately skips the leg
+   * from the source down to `viaY` that a full path would otherwise retrace. */
+  legOnly?: boolean
+}
+
 export function ElbowEdge({ sourceX, sourceY, targetX, targetY, data, style }: EdgeProps) {
-  const info = data as { centerX?: number; viaY?: number } | undefined
+  const info = data as ElbowEdgeData | undefined
+  if (info?.spanLoX !== undefined && info.spanHiX !== undefined && info.viaY !== undefined) {
+    const path = `M ${sourceX} ${sourceY} L ${sourceX} ${info.viaY} M ${info.spanLoX} ${info.viaY} L ${info.spanHiX} ${info.viaY}`
+    return <path fill="none" style={style} d={path} />
+  }
   const bendX = info?.centerX ?? (sourceX + targetX) / 2
+  if (info?.legOnly && info.viaY !== undefined) {
+    const path = `M ${bendX} ${info.viaY} L ${bendX} ${targetY} L ${targetX} ${targetY}`
+    return <path fill="none" style={style} d={path} />
+  }
   const path =
     info?.viaY !== undefined
       ? `M ${sourceX} ${sourceY} L ${sourceX} ${info.viaY} L ${bendX} ${info.viaY} L ${bendX} ${targetY} L ${targetX} ${targetY}`
