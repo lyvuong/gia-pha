@@ -689,20 +689,32 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       needsUnionEdge = !!unionOverride
       preferredUnionBendX = marriageRoute.centerX
     } else if (!stacked) {
-      // An ordinary, adjacent couple: a plain straight marriage line, and their shared
-      // union point sits at the true midpoint between them.
+      // An ordinary, adjacent couple: routed the same leader-enforced, box-avoiding way
+      // as every other marriage line (see `pickClearRoute`) rather than a hardcoded
+      // straight line — since they're already side by side at the same row, this always
+      // resolves to the very same plain straight line, just via the one shared mechanism
+      // that actually guarantees it instead of an unenforced assumption.
       const [leftId, rightId] = anchorPos.x <= spousePos.x ? [unit.anchor.id, unit.spouse.id] : [unit.spouse.id, unit.anchor.id]
+      const leftPos = leftId === unit.anchor.id ? anchorPos : spousePos
+      const rightPos = rightId === unit.anchor.id ? anchorPos : spousePos
+      const leftHandleX = leftPos.x + NODE_WIDTH
+      const rightHandleX = rightPos.x
+      const leftMidY = leftPos.y + NODE_HEIGHT / 2
+      const rightMidY = rightPos.y + NODE_HEIGHT / 2
+      const marriageRoute = pickClearRoute(leftHandleX, leftMidY, rightHandleX, rightMidY, memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])))
       edges.push({
         id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
         source: leftId,
         sourceHandle: 'right',
         target: rightId,
         targetHandle: 'left',
-        type: 'spouseEdge',
+        type: 'elbowEdge',
+        data: marriageRoute,
         style: { stroke: color },
       })
-      unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
+      unionAnchorPos = midpointOnRoute(marriageRoute, leftMidY, rightMidY)
       needsUnionEdge = !!unionOverride
+      preferredUnionBendX = marriageRoute.centerX
     } else {
       // A remarried anchor's wives are stacked in one column to their right (see
       // `blockOf`). Every line from the anchor to a wife is pinned (via `centerX`) to

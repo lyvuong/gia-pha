@@ -267,11 +267,6 @@
   pointer-events: none;
 }
 
-.spouse-edge {
-  stroke: var(--color-gold-dark);
-  stroke-width: 2;
-}
-
 .avatar {
   border-radius: 50%;
   object-fit: cover;

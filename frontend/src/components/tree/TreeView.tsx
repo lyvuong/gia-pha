@@ -14,11 +14,10 @@ import type { Member } from '../../types/models'
 import { ElbowEdge } from './ElbowEdge'
 import { GroupDivider } from './GroupDivider'
 import { MemberNode } from './MemberNode'
-import { SpouseEdge } from './SpouseEdge'
 import { UnionNode } from './UnionNode'
 
 const nodeTypes = { memberNode: MemberNode, unionNode: UnionNode, groupDivider: GroupDivider }
-const edgeTypes = { spouseEdge: SpouseEdge, elbowEdge: ElbowEdge }
+const edgeTypes = { elbowEdge: ElbowEdge }
 
 interface CenterOnMemberProps {
   memberId: string | null
