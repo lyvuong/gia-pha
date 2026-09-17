@@ -30,6 +30,18 @@ export interface NameEntry {
 
 export type Gender = 'male' | 'female'
 
+/** A death date where the year may be unknown (common for older ancestors — the day and
+ * month of a death anniversary are often remembered long after the year is), and which
+ * may be recorded on the lunar calendar rather than the solar one, as is customary for
+ * Vietnamese death anniversaries (ngày giỗ). `day`/`month` are always both present;
+ * a date with neither is simply not recorded at all (`Member.deathDate` is `null`). */
+export interface PartialDate {
+  day: number
+  month: number
+  year: number | null
+  isLunar: boolean
+}
+
 export interface Member {
   id: string
   fullName: string
@@ -39,7 +51,7 @@ export interface Member {
   gender: Gender | null
   generation: number
   birthDate: string | null
-  deathDate: string | null
+  deathDate: PartialDate | null
   placeOfBirth: string
   queQuan: string
   parentIds: string[]

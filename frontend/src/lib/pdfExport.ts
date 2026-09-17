@@ -81,8 +81,9 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
         y = MARGIN
       }
       doc.setFontSize(11)
-      const years = member.deathDate
-        ? `(${member.birthDate?.slice(0, 4) ?? '?'}–${member.deathDate.slice(0, 4)})`
+      const deathYear = member.deathDate ? (member.deathDate.year != null ? String(member.deathDate.year) : '?') : null
+      const years = deathYear
+        ? `(${member.birthDate?.slice(0, 4) ?? '?'}–${deathYear})`
         : member.birthDate
           ? `(${member.birthDate.slice(0, 4)}–)`
           : ''

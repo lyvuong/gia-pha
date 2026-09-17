@@ -475,6 +475,24 @@
   flex-shrink: 0;
 }
 
+.death-date-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.death-date-row input {
+  flex: 1 1 80px;
+  min-width: 0;
+}
+
+.member-edit-form .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
 .relation-field {
   display: flex;
   flex-direction: column;

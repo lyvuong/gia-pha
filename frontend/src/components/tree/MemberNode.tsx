@@ -9,7 +9,10 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
   if (!member) return null
 
   const birthYear = member.birthDate?.slice(0, 4)
-  const deathYear = member.deathDate?.slice(0, 4)
+  // A death date's day/month are always known once it's recorded at all, but the year
+  // may not be — show "?" for the year rather than silently dropping the fact that the
+  // person has died.
+  const deathYear = member.deathDate ? (member.deathDate.year != null ? String(member.deathDate.year) : '?') : undefined
   const years = deathYear ? `${birthYear ?? '?'}–${deathYear}` : birthYear ? `${birthYear}–` : ''
   const birthName = member.names.find((n) => n.label === 'birthName' && n.value)?.value
 

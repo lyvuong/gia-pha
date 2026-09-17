@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addMember, updateMember } from '../../hooks/useMembers'
-import { NAME_LABELS, type Education, type Member, type NameEntry, type NewMember } from '../../types/models'
+import { NAME_LABELS, type Education, type Member, type NameEntry, type NewMember, type PartialDate } from '../../types/models'
 import { TrashIcon } from '../common/icons'
 import { PhotoUploader } from './PhotoUploader'
 
@@ -67,6 +67,17 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
   )
   const [saving, setSaving] = useState(false)
 
+  // The death date's day/month/year are edited as three separate text fields (year
+  // optional — see `PartialDate`) rather than bound directly to `draft.deathDate`, so a
+  // day typed before its month doesn't get silently discarded just because the date
+  // isn't complete yet; `syncDeathDate` recomputes the real `draft.deathDate` (null
+  // unless both day and month are filled in) after every keystroke.
+  const initialDeathDate = member?.deathDate ?? null
+  const [deathDay, setDeathDay] = useState(initialDeathDate ? String(initialDeathDate.day) : '')
+  const [deathMonth, setDeathMonth] = useState(initialDeathDate ? String(initialDeathDate.month) : '')
+  const [deathYear, setDeathYear] = useState(initialDeathDate?.year != null ? String(initialDeathDate.year) : '')
+  const [deathIsLunar, setDeathIsLunar] = useState(initialDeathDate?.isLunar ?? false)
+
   const otherMembers = members.filter((m) => m.id !== member?.id)
   // A parent, spouse, and child are mutually exclusive relationships — cross out
   // whichever's already picked in the other field so the two lists (often near-identical
@@ -83,6 +94,14 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
 
   function updateField<K extends keyof NewMember>(key: K, value: NewMember[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
+  }
+
+  function syncDeathDate(day: string, month: string, year: string, isLunar: boolean) {
+    const d = Number(day)
+    const m = Number(month)
+    const y = year ? Number(year) : null
+    const next: PartialDate | null = d && m ? { day: d, month: m, year: y, isLunar } : null
+    updateField('deathDate', next)
   }
 
   function addRelation(field: 'parentIds' | 'spouseIds', id: string) {
@@ -228,14 +247,53 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
         />
       </label>
 
-      <label>
-        {t('member.deathDate')}
-        <input
-          type="date"
-          value={draft.deathDate ?? ''}
-          onChange={(e) => updateField('deathDate', e.target.value || null)}
-        />
-      </label>
+      <fieldset>
+        <legend>{t('member.deathDate')}</legend>
+        <div className="death-date-row">
+          <input
+            type="number"
+            min={1}
+            max={31}
+            placeholder={t('member.day')}
+            value={deathDay}
+            onChange={(e) => {
+              setDeathDay(e.target.value)
+              syncDeathDate(e.target.value, deathMonth, deathYear, deathIsLunar)
+            }}
+          />
+          <input
+            type="number"
+            min={1}
+            max={12}
+            placeholder={t('member.month')}
+            value={deathMonth}
+            onChange={(e) => {
+              setDeathMonth(e.target.value)
+              syncDeathDate(deathDay, e.target.value, deathYear, deathIsLunar)
+            }}
+          />
+          <input
+            type="number"
+            placeholder={t('member.yearOptional')}
+            value={deathYear}
+            onChange={(e) => {
+              setDeathYear(e.target.value)
+              syncDeathDate(deathDay, deathMonth, e.target.value, deathIsLunar)
+            }}
+          />
+        </div>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={deathIsLunar}
+            onChange={(e) => {
+              setDeathIsLunar(e.target.checked)
+              syncDeathDate(deathDay, deathMonth, deathYear, e.target.checked)
+            }}
+          />
+          {t('member.lunarCalendar')}
+        </label>
+      </fieldset>
 
       <label>
         {t('member.placeOfBirth')}

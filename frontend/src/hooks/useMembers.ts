@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from 'react'
 import { db } from '../firebase/config'
 import { normalizeVietnamese } from '../lib/normalizeVietnamese'
-import { NAME_LABELS, type Member, type NameEntry, type NewMember, type Story } from '../types/models'
+import { NAME_LABELS, type Member, type NameEntry, type NewMember, type PartialDate, type Story } from '../types/models'
 
 /** Reads members written before `names` became a single array — each name category
  * used to be its own flat string field. */
@@ -24,6 +24,21 @@ function legacyNames(data: Record<string, unknown>): NameEntry[] {
     if (typeof value === 'string' && value) entries.push({ label, value })
   }
   return entries
+}
+
+/** Reads a death date written before it became a `PartialDate` (day/month always known,
+ * year optional, plus a lunar-calendar flag) — it used to be a plain `YYYY-MM-DD` string,
+ * same as `birthDate` still is. */
+function toPartialDate(value: unknown): PartialDate | null {
+  if (!value) return null
+  if (typeof value === 'string') {
+    const [y, m, d] = value.split('-').map(Number)
+    if (!y || !m || !d) return null
+    return { day: d, month: m, year: y, isLunar: false }
+  }
+  const obj = value as Partial<PartialDate>
+  if (typeof obj.day !== 'number' || typeof obj.month !== 'number') return null
+  return { day: obj.day, month: obj.month, year: typeof obj.year === 'number' ? obj.year : null, isLunar: obj.isLunar === true }
 }
 
 function fromDoc(id: string, data: Record<string, unknown>): Member {
@@ -37,7 +52,7 @@ function fromDoc(id: string, data: Record<string, unknown>): Member {
     gender: (data.gender as Member['gender']) ?? null,
     generation: (data.generation as number) ?? 0,
     birthDate: (data.birthDate as string | null) ?? null,
-    deathDate: (data.deathDate as string | null) ?? null,
+    deathDate: toPartialDate(data.deathDate),
     placeOfBirth: (data.placeOfBirth as string) ?? '',
     queQuan: (data.queQuan as string) ?? '',
     parentIds: (data.parentIds as string[]) ?? [],
