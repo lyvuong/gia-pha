@@ -26,10 +26,10 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
           {member.gender === 'male' ? '♂' : '♀'}
         </span>
       )}
-      <Avatar name={birthName ?? member.fullName} photoUrl={member.photoUrl} size={44} />
+      <Avatar name={member.fullName} photoUrl={member.photoUrl} size={44} />
       <div className="member-node-info">
-        <div className="member-node-name">{birthName ?? member.fullName}</div>
-        {birthName && <div className="member-node-fullname">({member.fullName})</div>}
+        <div className="member-node-name">{member.fullName}</div>
+        {birthName && <div className="member-node-birthname">({birthName})</div>}
         {years && <div className="member-node-years">{years}</div>}
         <div className="member-node-generation">{t('tree.generation', { n: data.displayGeneration ?? member.generation })}</div>
       </div>
