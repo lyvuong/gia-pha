@@ -19,9 +19,9 @@ export interface Story {
 }
 
 /** The selectable set of "other name" categories a member can have any number of. */
-export type NameLabel = 'birthName' | 'aka' | 'nicknames' | 'phapDanh'
+export type NameLabel = 'birthName' | 'maidenName' | 'aka' | 'nicknames' | 'phapDanh'
 
-export const NAME_LABELS: NameLabel[] = ['birthName', 'aka', 'nicknames', 'phapDanh']
+export const NAME_LABELS: NameLabel[] = ['birthName', 'maidenName', 'aka', 'nicknames', 'phapDanh']
 
 export interface NameEntry {
   label: NameLabel
