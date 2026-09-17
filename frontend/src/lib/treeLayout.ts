@@ -78,6 +78,12 @@ interface Route extends Record<string, unknown> {
   viaY?: number
 }
 
+/** Every connector leg touching a box must be long enough to read as a real stub, not a
+ * corner planted right on the edge — a bend that lands exactly on `sourceX`/`targetX` (or
+ * `sourceY`/`targetY` for a vertical leader) technically avoids every box but collapses
+ * that leg to nothing, which is what a *sizable* minimum length is here to rule out. */
+const MIN_LEADER = 16
+
 function hSegmentClearsBoxes(x0: number, x1: number, y: number, boxes: { x: number; y: number }[]): boolean {
   const lo = Math.min(x0, x1)
   const hi = Math.max(x0, x1)
@@ -95,7 +101,7 @@ function vSegmentClearsBoxes(x: number, y0: number, y1: number, boxes: { x: numb
  * legs, since the final horizontal leg (source's bend to the target's own x) is only
  * zero-length when `bendX` happens to equal `targetX`; any other bend has a real leg
  * there that needs checking too. */
-function routeIsClear(sourceX: number, sourceY: number, bendX: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): boolean {
+function hvhRouteIsClear(sourceX: number, sourceY: number, bendX: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): boolean {
   return (
     hSegmentClearsBoxes(sourceX, bendX, sourceY, boxes) &&
     vSegmentClearsBoxes(bendX, sourceY, targetY, boxes) &&
@@ -103,28 +109,61 @@ function routeIsClear(sourceX: number, sourceY: number, bendX: number, targetX: 
   )
 }
 
-/** The corner points for a free-form elbow connector (one without the layout's own
- * precomputed crossing-free guarantees — a manual drag, or a manually moved connector
- * dot) between two arbitrary points, routed clear of every other member's box.
- *
- * Prefers the fewest turns possible: a single corner sitting at the target's own x (so
- * the line runs straight out from the source, then straight into the target), falling
- * back to a corner at the source's x, then to one shifted further out past whichever box
- * is in the way. None of those can help when the source's *own row* is blocked for its
- * entire width between source and target — no single horizontal-then-vertical bend can
- * dodge an obstacle that sits directly on the line it would have to leave along, however
- * that bend is chosen. When every single-bend option fails, this ducks to a nearby row
- * that's clear before crossing over, adding one extra corner rather than leaving the line
- * to cut through whatever's in the way. */
-function pickClearRoute(sourceX: number, sourceY: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): Route {
-  for (const bendX of [targetX, sourceX]) {
-    if (routeIsClear(sourceX, sourceY, bendX, targetX, targetY, boxes)) return { centerX: bendX }
+/** Searches outward from `mid` in `step`-sized increments for the first value satisfying
+ * `isClear`, trying the two candidates equidistant from `mid` at each step before moving
+ * further out — so a bend that has to move off-center still favors whichever direction
+ * needs the smaller nudge, rather than always drifting the same way. Two passes: the
+ * first also requires `MIN_LEADER` clearance from both `lo` and `hi` (via `hasLeader`),
+ * the second drops that requirement so a genuinely tight gap still gets *some* answer
+ * rather than none. */
+function searchOutward(mid: number, step: number, maxSteps: number, hasLeader: (v: number) => boolean, isClear: (v: number) => boolean): number | undefined {
+  for (const requireLeader of [true, false]) {
+    for (let i = 0; i <= maxSteps; i++) {
+      const candidates = i === 0 ? [mid] : [mid + i * step, mid - i * step]
+      for (const v of candidates) {
+        if (requireLeader && !hasLeader(v)) continue
+        if (isClear(v)) return v
+      }
+    }
   }
-  const dir = targetX >= sourceX ? 1 : -1
-  for (let step = 1; step <= 40; step++) {
-    const bendX = targetX + dir * step * (HORIZONTAL_GAP / 2)
-    if (routeIsClear(sourceX, sourceY, bendX, targetX, targetY, boxes)) return { centerX: bendX }
+  return undefined
+}
+
+/** Where a horizontal-leadered elbow connector (one without the layout's own precomputed
+ * crossing-free guarantees — a manual drag, or a manually moved connector dot — between
+ * two boxes joined on their left/right edges) should bend, so both the leg leaving the
+ * source and the leg entering the target run a real, visible distance horizontally
+ * before turning: prefers the true midpoint (equal leaders on both sides), searching
+ * outward from it when that's blocked by some other member's box. None of those can help
+ * when the source's *own row* is blocked for its entire width to the target — no
+ * horizontal bend, wherever placed, dodges an obstacle sitting directly on the row it
+ * would have to leave along. When every bend option fails, this ducks to a nearby row
+ * that's clear before crossing over, adding one extra corner rather than cutting through
+ * whatever's in the way. */
+function pickClearRoute(
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number,
+  boxes: { x: number; y: number }[],
+  preferredX?: number,
+): Route {
+  // A caller with its own already-picked bend for a *related* connector (e.g. the
+  // marriage line this couple's union dot sits near) passes it here first, so the two
+  // lines share one column and read as a single merged line wherever they run alongside
+  // each other, instead of each computing its own slightly different bend independently.
+  if (preferredX !== undefined && hvhRouteIsClear(sourceX, sourceY, preferredX, targetX, targetY, boxes)) {
+    return { centerX: preferredX }
   }
+  const mid = (sourceX + targetX) / 2
+  const bendX = searchOutward(
+    mid,
+    HORIZONTAL_GAP / 4,
+    60,
+    (x) => Math.abs(x - sourceX) >= MIN_LEADER && Math.abs(x - targetX) >= MIN_LEADER,
+    (x) => hvhRouteIsClear(sourceX, sourceY, x, targetX, targetY, boxes),
+  )
+  if (bendX !== undefined) return { centerX: bendX }
 
   const rowDir = targetY >= sourceY ? 1 : -1
   const rowStep = ROW_HEIGHT / 6
@@ -132,12 +171,38 @@ function pickClearRoute(sourceX: number, sourceY: number, targetX: number, targe
     const viaY = sourceY + rowDir * step * rowStep
     if (rowDir > 0 ? viaY >= targetY : viaY <= targetY) break
     if (!vSegmentClearsBoxes(sourceX, sourceY, viaY, boxes)) continue
-    for (const bendX of [targetX, sourceX]) {
-      if (routeIsClear(sourceX, viaY, bendX, targetX, targetY, boxes)) return { centerX: bendX, viaY }
+    for (const x of [mid, targetX, sourceX]) {
+      if (hvhRouteIsClear(sourceX, viaY, x, targetX, targetY, boxes)) return { centerX: x, viaY }
     }
   }
 
-  return { centerX: targetX }
+  return { centerX: mid }
+}
+
+/** Where a vertical-leadered elbow connector (a union or a solo parent down to a child —
+ * always joined on their top/bottom edges) should jog, so the leg leaving the source and
+ * the leg entering the target both run a real vertical distance before turning: prefers
+ * the row midway between the two generations (equal leaders on both sides), searching
+ * outward when that row is blocked. Always keeps the leaving leg at the source's own x
+ * and the entering leg at the target's own x — never a diagonal-risking estimate of
+ * either — so this only ever needs to find a clear row, not a clear column too. Siblings
+ * sharing the same source and the same generation naturally resolve to the very same
+ * row, merging what would otherwise be several near-identical parallel lines into one
+ * shared trunk. */
+function pickClearBarY(sourceX: number, sourceY: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): number {
+  const mid = (sourceY + targetY) / 2
+  const lo = Math.min(sourceY, targetY)
+  const hi = Math.max(sourceY, targetY)
+  const isClear = (y: number) =>
+    vSegmentClearsBoxes(sourceX, sourceY, y, boxes) && hSegmentClearsBoxes(sourceX, targetX, y, boxes) && vSegmentClearsBoxes(targetX, y, targetY, boxes)
+  const barY = searchOutward(
+    mid,
+    ROW_HEIGHT / 12,
+    60,
+    (y) => y > lo && y < hi && Math.abs(y - sourceY) >= MIN_LEADER && Math.abs(y - targetY) >= MIN_LEADER,
+    (y) => y > lo && y < hi && isClear(y),
+  )
+  return barY ?? mid
 }
 
 /** A point close to a `pickClearRoute` path, for placing a union dot near the line it
@@ -521,6 +586,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     // placed party or dot does, or the dot would float disconnected from its couple.
     let needsUnionEdge = false
     let unionEdgeCenterX: number | undefined
+    // When a spouse-to-union line is still needed alongside a marriage line, try to
+    // reuse that line's own bend first, so the two merge into one visual line wherever
+    // they'd otherwise run alongside each other (see `pickClearRoute`'s `preferredX`).
+    let preferredUnionBendX: number | undefined
 
     if (manuallyPlaced) {
       // A dragged box could have landed on either side of its spouse, above or below —
@@ -551,9 +620,13 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         style: { stroke: color },
       })
       // Sits on the marriage line's own route, wherever that ended up, so the dot is
-      // never left floating off to the side of the line it's supposed to be on.
+      // never left floating off to the side of the line it's supposed to be on — and,
+      // sitting exactly on that route, needs no separate line back to it (which would
+      // just be a second, independently-bent near-duplicate of the marriage line itself)
+      // unless it's *also* been dragged somewhere else.
       unionAnchorPos = midpointOnRoute(marriageRoute, anchorMidY, spouseMidY)
-      needsUnionEdge = true
+      needsUnionEdge = !!unionOverride
+      preferredUnionBendX = marriageRoute.centerX
     } else if (!stacked) {
       // An ordinary, adjacent couple: a plain straight marriage line, and their shared
       // union point sits at the true midpoint between them.
@@ -624,7 +697,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         const route: Route =
           unionEdgeCenterX !== undefined
             ? { centerX: unionEdgeCenterX }
-            : pickClearRoute(sourceHandleX, sourceMidY, unionAnchorPos.x, unionAnchorPos.y, memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])))
+            : pickClearRoute(
+                sourceHandleX,
+                sourceMidY,
+                unionAnchorPos.x,
+                unionAnchorPos.y,
+                memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])),
+                preferredUnionBendX,
+              )
         edges.push({
           id: `spouse-to-union-${unit.key}`,
           source: unit.spouse.id,
@@ -649,21 +729,17 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         // A child can be manually dragged too, same as anyone else — react-flow's own
         // `smoothstep` router doesn't know about other members' boxes, so a dragged
         // child could end up with a line cutting through somebody else's. Route it the
-        // same box-avoiding, minimum-turn way as every other free-form connector.
+        // same box-avoiding way as every other free-form connector — vertically leadered
+        // on both ends, since a union's and a child's own handles both face top/bottom.
         const childPos = positions.get(child.id)!
-        const route = pickClearRoute(
-          unionAnchorPos.x,
-          unionAnchorPos.y,
-          childPos.x + NODE_WIDTH / 2,
-          childPos.y,
-          memberBoxesExcept(new Set([child.id])),
-        )
+        const childCenterX = childPos.x + NODE_WIDTH / 2
+        const barY = pickClearBarY(unionAnchorPos.x, unionAnchorPos.y, childCenterX, childPos.y, memberBoxesExcept(new Set([child.id])))
         edges.push({
           id: `child-${unionId}-${child.id}`,
           source: unionId,
           target: child.id,
           type: 'elbowEdge',
-          data: route,
+          data: { centerX: childCenterX, viaY: barY },
           style: { stroke: color },
         })
       }
@@ -675,14 +751,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     for (const child of unit.children) {
       const parentPos = positions.get(unit.anchor.id)!
       const childPos = positions.get(child.id)!
-      const route = pickClearRoute(
-        parentPos.x + NODE_WIDTH / 2,
-        parentPos.y + NODE_HEIGHT,
-        childPos.x + NODE_WIDTH / 2,
-        childPos.y,
-        memberBoxesExcept(new Set([unit.anchor.id, child.id])),
-      )
-      edges.push({ id: `child-${unit.anchor.id}-${child.id}`, source: unit.anchor.id, target: child.id, type: 'elbowEdge', data: route })
+      const parentBottomX = parentPos.x + NODE_WIDTH / 2
+      const childCenterX = childPos.x + NODE_WIDTH / 2
+      const barY = pickClearBarY(parentBottomX, parentPos.y + NODE_HEIGHT, childCenterX, childPos.y, memberBoxesExcept(new Set([unit.anchor.id, child.id])))
+      edges.push({
+        id: `child-${unit.anchor.id}-${child.id}`,
+        source: unit.anchor.id,
+        target: child.id,
+        type: 'elbowEdge',
+        data: { centerX: childCenterX, viaY: barY },
+      })
     }
   }
 
