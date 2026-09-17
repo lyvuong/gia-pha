@@ -490,8 +490,29 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
 
   interface Block {
     items: BlockItem[]
-    /** Sort key for this block's left-to-right position among its row's other blocks. */
+    /** Sort key for this block's left-to-right position among its row's other blocks —
+     * and, when `hasRealAnchor` is set, also a genuine x coordinate this block prefers to
+     * center under (see the placement loop below). */
     anchorX: number
+    /** Whether `anchorX` came from an actual parent position rather than the birth-date
+     * fallback used for a block with no recorded parents in this tree — that fallback is
+     * a sort key only (often a raw millisecond timestamp), never a real x coordinate, so
+     * it must never be used to *place* a block, only to order it among its row's others. */
+    hasRealAnchor: boolean
+  }
+
+  /** How much horizontal room `items` needs laid out left-to-right, matching the
+   * increments the placement loop below actually applies per item — used to center a
+   * block under its own preferred anchor x rather than just its left edge. */
+  function blockWidth(items: BlockItem[]): number {
+    let width = 0
+    for (const item of items) {
+      // A 'stack' item reserves a column for its anchor plus a second, wider column for
+      // the wives stacked under them — matching the two `cursorX` advances the placement
+      // loop below makes for one, see there.
+      width += item.kind === 'stack' ? 2 * (NODE_WIDTH + HORIZONTAL_GAP) + item.wives.length * CHANNEL_SPACING : NODE_WIDTH + HORIZONTAL_GAP
+    }
+    return width
   }
 
   const positions = new Map<string, { x: number; y: number }>()
@@ -518,16 +539,26 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       // whose own marriages have no recorded parents) falls back to birth order.
       const withParents = flat.find((m) => m.parentIds.some((p) => byId.has(p)))
       const anchorX = withParents ? parentAnchorX(withParents) : flat[0].birthDate ? Date.parse(flat[0].birthDate) : 0
-      return { items, anchorX }
+      return { items, anchorX, hasRealAnchor: !!withParents }
     })
     blocks.sort((a, b) => a.anchorX - b.anchorX)
 
     let cursorX = 0
     blocks.forEach((block, i) => {
-      if (i > 0) {
-        dividerPositions.push({ x: cursorX - GROUP_GAP / 2, y: bandTop })
-        cursorX += GROUP_GAP - HORIZONTAL_GAP
-      }
+      const width = blockWidth(block.items)
+      // Center a block under its own parents' x when there's room to — i.e. never
+      // *closer* to the previous block than the normal gap allows (packing still wins
+      // when parents are close together or on top of each other), but free to sit
+      // *further* out, tracking however far apart its real parents actually are. Without
+      // this, every row packs at the same minimum spacing regardless of how spread out
+      // the row above was, so two unrelated families' children can end up compressed
+      // into the same narrow span their parents were nowhere near sharing — forcing both
+      // families' union-to-children trunks to sweep sideways through that same span to
+      // reach them, right on top of each other.
+      const minStartX = i === 0 ? 0 : cursorX - HORIZONTAL_GAP + GROUP_GAP
+      const startX = block.hasRealAnchor ? Math.max(minStartX, block.anchorX - width / 2) : minStartX
+      if (i > 0) dividerPositions.push({ x: (cursorX - HORIZONTAL_GAP + startX) / 2, y: bandTop })
+      cursorX = startX
       for (const item of block.items) {
         if (item.kind === 'single') {
           positions.set(item.member.id, { x: cursorX, y: bandTop })
