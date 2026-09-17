@@ -17,8 +17,10 @@ const CHANNEL_SPACING = 20
  * stack — a minimum margin, not a full `ROW_HEIGHT`: unlike two different generations,
  * two stacked spouses have no children or connectors of their own sitting *between*
  * them, so there's nothing that needs a whole extra row's worth of room, just enough gap
- * to read as separate boxes. */
-const WIFE_STACK_STEP = NODE_HEIGHT + HORIZONTAL_GAP
+ * to read as separate boxes. Half the usual `HORIZONTAL_GAP` rather than half of the
+ * whole step — `NODE_HEIGHT` itself is the floor this can never shrink past without two
+ * stacked boxes starting to overlap. */
+const WIFE_STACK_STEP = NODE_HEIGHT + HORIZONTAL_GAP / 2
 
 /** Colorblind-safe (Okabe–Ito) palette assigned one-per-couple, cycling if there are
  * more couples than colors — so a union's spouse line, its own dot, and every line to
