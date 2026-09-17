@@ -743,65 +743,79 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   }
 
   // Which "trunk row" (0 = closest to the children's own row, 1 = one step further up,
-  // ...) each stacked wife's union-to-children trunk renders on — assigned so two wives
-  // of the same anchor never cross each other's trunk, and never share a row when their
-  // bars would otherwise run flush together as one ambiguous line.
+  // ...) each union-to-children trunk renders on, keyed by `unit.key` — assigned so two
+  // *different* couples' trunks in the same generation never cross, and never share a row
+  // when their bars would otherwise run flush together as one ambiguous line. This isn't
+  // only a stacked-wife concern: two entirely unrelated ordinary couples elsewhere in the
+  // same row can just as easily have their trunks' free-searched bar heights coincide
+  // (`pickClearSharedBarY` has no notion of any *other* union's bar), especially since
+  // both searches tend to prefer the same "midpoint of source and target" — see the
+  // reported case of two unrelated couples' bars landing on the exact same y with
+  // overlapping x reach.
   //
-  // A wife's trunk spans horizontally from her own channel x out to her furthest child.
-  // Whenever two wives' spans overlap at all, they need separate rows just to stay
-  // visually distinct — but *which* of the two gets the more elevated row is a real
-  // constraint, not a free choice: a less-elevated wife's bar sits *below* a more-elevated
-  // wife's own dot, so it only ever risks crossing that wife's *channel* (the line from
-  // her own box down to her dot) — never her bar or her legs into her own children, both
-  // of which sit lower still. So the one and only hazard to avoid is a wife's bar
-  // sweeping across another wife's channel x while sitting *below* that wife's row —
-  // which happens exactly when the less-elevated wife's span contains the more-elevated
-  // wife's channel x. Elevating whichever wife's channel the other's span would otherwise
-  // sweep across (not just whichever wife's span is wider — a wider span can still be
-  // crossing-free if it happens to miss the other's channel x specifically) is what
-  // actually avoids it.
-  const trunkRowByWifeId = new Map<string, number>()
+  // A trunk spans horizontally from its own connection x (a stacked wife's channel x, or
+  // an ordinary couple's own union-dot x) out to its furthest child. Whenever two trunks'
+  // spans overlap at all, they need separate rows just to stay visually distinct — but
+  // *which* of the two gets the more elevated row is a real constraint, not a free choice:
+  // a less-elevated trunk's bar sits *below* a more-elevated trunk's own connection point,
+  // so it only ever risks crossing that trunk's own vertical leg above the bar (a stacked
+  // wife's multi-row channel, or an ordinary couple's short dot-to-bar drop) — never its
+  // bar or its legs into its own children, both of which sit lower still. So the one and
+  // only hazard to avoid is a trunk's bar sweeping across another trunk's connection x
+  // while sitting *below* that trunk's own row — which happens exactly when the
+  // less-elevated trunk's span contains the more-elevated trunk's connection x. Elevating
+  // whichever trunk's connection x the other's span would otherwise sweep across (not just
+  // whichever span is wider — a wider span can still be crossing-free if it happens to
+  // miss the other's connection x specifically) is what actually avoids it.
+  const trunkRowByUnionKey = new Map<string, number>()
   {
-    const wivesByAnchor = new Map<string, { wifeId: string; channelX: number; lo: number; hi: number }[]>()
+    const unionsByGeneration = new Map<number, { unionKey: string; connX: number; lo: number; hi: number }[]>()
     for (const unit of unitsByKey.values()) {
       if (!unit.spouse || unit.children.length === 0) continue
-      if ((spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
-      const channelX = channelXByWifeId.get(unit.spouse.id)
-      if (channelX === undefined) continue
+      const anchorPos = positions.get(unit.anchor.id)
+      const spousePos = positions.get(unit.spouse.id)
+      if (!anchorPos || !spousePos) continue
+      const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
+      // An ordinary couple has no precomputed dot x the way a stacked wife's channel x
+      // is precomputed — the marriage line's own routing settles that later, in the main
+      // edges loop below. The couple's own midpoint is a close enough stand-in: this is
+      // only used to rank trunks against each other, not to place anything on the page.
+      const connX = stacked ? channelXByWifeId.get(unit.spouse.id) : (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2
+      if (connX === undefined) continue
       const childXs = unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
-      const lo = Math.min(channelX, ...childXs)
-      const hi = Math.max(channelX, ...childXs)
-      const list = wivesByAnchor.get(unit.anchor.id) ?? []
-      list.push({ wifeId: unit.spouse.id, channelX, lo, hi })
-      wivesByAnchor.set(unit.anchor.id, list)
+      const lo = Math.min(connX, ...childXs)
+      const hi = Math.max(connX, ...childXs)
+      const list = unionsByGeneration.get(unit.anchor.generation) ?? []
+      list.push({ unionKey: unit.key, connX, lo, hi })
+      unionsByGeneration.set(unit.anchor.generation, list)
     }
-    for (const wives of wivesByAnchor.values()) {
+    for (const unions of unionsByGeneration.values()) {
       // [lower, higher]: `lower` must end up on a strictly smaller row than `higher`.
       const constraints: [string, string][] = []
-      for (let i = 0; i < wives.length; i++) {
-        for (let j = i + 1; j < wives.length; j++) {
-          const a = wives[i]
-          const b = wives[j]
+      for (let i = 0; i < unions.length; i++) {
+        for (let j = i + 1; j < unions.length; j++) {
+          const a = unions[i]
+          const b = unions[j]
           if (a.lo >= b.hi || b.lo >= a.hi) continue // spans don't overlap at all
-          const aSweepsB = b.channelX > a.lo && b.channelX < a.hi
-          const bSweepsA = a.channelX > b.lo && a.channelX < b.hi
-          if (aSweepsB && !bSweepsA) constraints.push([a.wifeId, b.wifeId])
-          else if (bSweepsA && !aSweepsB) constraints.push([b.wifeId, a.wifeId])
+          const aSweepsB = b.connX > a.lo && b.connX < a.hi
+          const bSweepsA = a.connX > b.lo && a.connX < b.hi
+          if (aSweepsB && !bSweepsA) constraints.push([a.unionKey, b.unionKey])
+          else if (bSweepsA && !aSweepsB) constraints.push([b.unionKey, a.unionKey])
           else {
             // Either direction is equally crossing-free (or equally not) — fall back to
             // elevating whoever reaches further, for a stable, deterministic result.
             const [narrower, wider] = a.hi - a.lo <= b.hi - b.lo ? [a, b] : [b, a]
-            constraints.push([narrower.wifeId, wider.wifeId])
+            constraints.push([narrower.unionKey, wider.unionKey])
           }
         }
       }
-      // Layer wives into rows via topological sort on `constraints`: a wife is safe to
-      // place on the current (lowest still-open) row once every wife that must be *below*
-      // her has already been placed on an earlier one. A genuine cycle (each of two wives'
-      // spans sweeps across the other's channel — no elevation choice avoids it) can't be
-      // resolved by row order at all; the fallback just places whatever's left so this
-      // always terminates instead of looping forever.
-      const remaining = new Set(wives.map((w) => w.wifeId))
+      // Layer trunks into rows via topological sort on `constraints`: a trunk is safe to
+      // place on the current (lowest still-open) row once every trunk that must be
+      // *below* it has already been placed on an earlier one. A genuine cycle (each of
+      // two trunks' spans sweeps across the other's connection x — no elevation choice
+      // avoids it) can't be resolved by row order at all; the fallback just places
+      // whatever's left so this always terminates instead of looping forever.
+      const remaining = new Set(unions.map((u) => u.unionKey))
       let row = 0
       while (remaining.size > 0) {
         const ready = [...remaining].filter(
@@ -809,7 +823,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         )
         const batch = ready.length > 0 ? ready : [...remaining]
         for (const id of batch) {
-          trunkRowByWifeId.set(id, row)
+          trunkRowByUnionKey.set(id, row)
           remaining.delete(id)
         }
         row++
@@ -886,13 +900,13 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         // `pickClearSharedBarY` no space to place a leadered bar at all, so the trunk
         // rendered flush against the children's own top edge — indistinguishable from
         // their boxes' border, making it unreadable which boxes it actually connected to.
-        // Also placed on this wife's own assigned trunk row (see `trunkRowByWifeId`), so
+        // Also placed on this wife's own assigned trunk row (see `trunkRowByUnionKey`), so
         // two or more wives of the same anchor whose trunks reach anywhere near each
         // other never share the exact same row — without it, their bars only differ by
         // each wife's `channelX` (20px apart) and run flush alongside one another,
         // reading as one thick, ambiguous line.
         const channelX = channelXByWifeId.get(unit.spouse.id)!
-        const trunkRow = trunkRowByWifeId.get(unit.spouse.id) ?? 0
+        const trunkRow = trunkRowByUnionKey.get(unit.key) ?? 0
         unionAnchorPos = {
           x: channelX,
           y: bandTop + bandHeightOf.get(unit.anchor.generation)! - 2 * MIN_LEADER - trunkRow * TRUNK_ROW_GAP,
@@ -952,13 +966,20 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           return { x: p.x + NODE_WIDTH / 2, y: p.y }
         })
         // A stacked wife's bar is pinned a fixed leader below her own dot (already placed
-        // on a row reserved for her, via `trunkRowByWifeId`) rather than independently
-        // re-searched: `pickClearSharedBarY` has no notion of *other wives'* bars, so its
-        // own free search routinely re-converged two different wives' bars back to
-        // nearly the same y (both searches prefer the midpoint of source and target,
-        // which barely differ), undoing the separation the dots were just given and
-        // crossing another wife's bar or channel right through the middle.
-        const barY = stacked ? unionAnchorPos.y + MIN_LEADER : pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes)
+        // on a row reserved for her, via `trunkRowByUnionKey`) rather than independently
+        // re-searched: `pickClearSharedBarY` has no notion of *other* trunks' bars, so its
+        // own free search routinely re-converged two different trunks' bars back to
+        // nearly the same y (every search prefers the midpoint of source and target,
+        // which barely differs between two couples sitting in the same two generations),
+        // undoing the separation the dots were just given and crossing another trunk's
+        // bar or channel right through the middle. An ordinary couple's bar keeps its own
+        // free search (there's no precomputed dot position to pin to before it runs), but
+        // still gets nudged up by its assigned trunk row on top of that, for the exact
+        // same reason.
+        const trunkRow = trunkRowByUnionKey.get(unit.key) ?? 0
+        const barY = stacked
+          ? unionAnchorPos.y + MIN_LEADER
+          : pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP
         pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
       }
     }
