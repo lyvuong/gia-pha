@@ -7,7 +7,7 @@ import {
   type NodeMouseHandler,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useEffect, useMemo, type Ref } from 'react'
+import { useEffect, useMemo, useState, type Ref } from 'react'
 import { setTreePosition, setUnionTreePosition } from '../../hooks/useMembers'
 import { computeTreeLayout, NODE_HEIGHT, NODE_WIDTH } from '../../lib/treeLayout'
 import type { Member } from '../../types/models'
@@ -51,10 +51,18 @@ interface TreeViewProps {
 
 export function TreeView({ giaPhaId, currentUid, members, selectedMemberId, centerOnMemberId, onSelectMember, containerRef }: TreeViewProps) {
   const { nodes, edges } = useMemo(() => computeTreeLayout(members), [members])
+  // Tracks whichever node is mid-drag so it can get a boundary-box outline — separate
+  // from `selected`, since the drag target isn't necessarily the selected member.
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const styledNodes = useMemo(
-    () => nodes.map((n) => (n.id === selectedMemberId ? { ...n, selected: true } : n)),
-    [nodes, selectedMemberId],
+    () =>
+      nodes.map((n) => ({
+        ...n,
+        selected: n.id === selectedMemberId,
+        className: n.id === draggingId ? 'tree-node-dragging' : undefined,
+      })),
+    [nodes, selectedMemberId, draggingId],
   )
 
   const handleNodeClick: NodeMouseHandler = (_event, node) => {
@@ -62,11 +70,16 @@ export function TreeView({ giaPhaId, currentUid, members, selectedMemberId, cent
     if (member) onSelectMember(member)
   }
 
+  function handleNodeDragStart(_event: unknown, node: Node) {
+    setDraggingId(node.id)
+  }
+
   // Dragging a box only ever moves that one member — see `setTreePosition` / the tree
   // layout's own handling of `Member.treePosition` — so a manual nudge to dodge a line
   // crossing never shifts anyone else's box. A connector dot can be dragged too (see
   // `setUnionTreePosition`), independent of either spouse's own box.
   function handleNodeDragStop(_event: unknown, node: Node) {
+    setDraggingId(null)
     if (node.type === 'memberNode') {
       void setTreePosition(giaPhaId, node.id, { x: node.position.x, y: node.position.y }, currentUid)
     } else if (node.type === 'unionNode') {
@@ -102,6 +115,7 @@ export function TreeView({ giaPhaId, currentUid, members, selectedMemberId, cent
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodeClick={handleNodeClick}
+        onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         fitView
       >

@@ -62,6 +62,37 @@ function exitSide(boxX: number, towardX: number): 'left' | 'right' {
   return towardX < boxX + NODE_WIDTH / 2 ? 'left' : 'right'
 }
 
+function hSegmentClearsBoxes(x0: number, x1: number, y: number, boxes: { x: number; y: number }[]): boolean {
+  const lo = Math.min(x0, x1)
+  const hi = Math.max(x0, x1)
+  return !boxes.some((b) => y > b.y && y < b.y + NODE_HEIGHT && hi > b.x && lo < b.x + NODE_WIDTH)
+}
+
+function vSegmentClearsBoxes(x: number, y0: number, y1: number, boxes: { x: number; y: number }[]): boolean {
+  const lo = Math.min(y0, y1)
+  const hi = Math.max(y0, y1)
+  return !boxes.some((b) => x > b.x && x < b.x + NODE_WIDTH && hi > b.y && lo < b.y + NODE_HEIGHT)
+}
+
+/** Where a free-form elbow connector (one without the layout's own precomputed
+ * crossing-free guarantees — a manual drag, or a manually moved connector dot) should
+ * bend. Prefers the fewest turns possible: a single corner sitting at the target's own x
+ * (so the line runs straight out from the source, then straight into the target — see
+ * `ElbowEdge`'s default), falling back to a corner at the source's x, and only shifting
+ * further out, past whichever box is in the way, if both of those would still cut through
+ * some other member's box along either the horizontal or vertical leg. */
+function pickClearBendX(sourceX: number, sourceY: number, targetX: number, targetY: number, boxes: { x: number; y: number }[]): number {
+  for (const x of [targetX, sourceX]) {
+    if (hSegmentClearsBoxes(sourceX, x, sourceY, boxes) && vSegmentClearsBoxes(x, sourceY, targetY, boxes)) return x
+  }
+  const dir = targetX >= sourceX ? 1 : -1
+  for (let step = 1; step <= 40; step++) {
+    const x = targetX + dir * step * (HORIZONTAL_GAP / 2)
+    if (hSegmentClearsBoxes(sourceX, x, sourceY, boxes) && vSegmentClearsBoxes(x, sourceY, targetY, boxes)) return x
+  }
+  return targetX
+}
+
 function compareBirthOrder(a: Member, b: Member): number {
   if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
   return 0
@@ -400,6 +431,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
 
   const edges: TreeEdge[] = []
 
+  /** Every other member's box, for keeping a free-form connector from cutting through
+   * someone it has nothing to do with. */
+  function memberBoxesExcept(excludeIds: Set<string>): { x: number; y: number }[] {
+    const list: { x: number; y: number }[] = []
+    for (const [id, pos] of positions) if (!excludeIds.has(id)) list.push(pos)
+    return list
+  }
+
   for (const unit of unitsByKey.values()) {
     const anchorPos = positions.get(unit.anchor.id)
     if (!anchorPos || !unit.spouse) continue
@@ -429,16 +468,32 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       // pick whichever handle actually faces the other party instead of assuming anchor
       // is left, so the line heads straight there instead of exiting the far side and
       // cutting back across its own box to get there.
+      const anchorSide = exitSide(anchorPos.x, spousePos.x + NODE_WIDTH / 2)
+      const spouseSide = exitSide(spousePos.x, anchorPos.x + NODE_WIDTH / 2)
+      const anchorHandleX = anchorSide === 'left' ? anchorPos.x : anchorPos.x + NODE_WIDTH
+      const spouseHandleX = spouseSide === 'left' ? spousePos.x : spousePos.x + NODE_WIDTH
+      const anchorMidY = anchorPos.y + NODE_HEIGHT / 2
+      const spouseMidY = spousePos.y + NODE_HEIGHT / 2
+      const marriageBendX = pickClearBendX(
+        anchorHandleX,
+        anchorMidY,
+        spouseHandleX,
+        spouseMidY,
+        memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])),
+      )
       edges.push({
         id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
         source: unit.anchor.id,
-        sourceHandle: exitSide(anchorPos.x, spousePos.x + NODE_WIDTH / 2),
+        sourceHandle: anchorSide,
         target: unit.spouse.id,
-        targetHandle: exitSide(spousePos.x, anchorPos.x + NODE_WIDTH / 2),
+        targetHandle: spouseSide,
         type: 'elbowEdge',
+        data: { centerX: marriageBendX },
         style: { stroke: color },
       })
-      unionAnchorPos = { x: (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2, y: (anchorPos.y + spousePos.y) / 2 + NODE_HEIGHT / 2 }
+      // Sits on the marriage line's own bend, wherever that ended up, so the dot is
+      // never left floating off to the side of the line it's supposed to be on.
+      unionAnchorPos = { x: marriageBendX, y: (anchorMidY + spouseMidY) / 2 }
       needsUnionEdge = true
     } else if (!stacked) {
       // An ordinary, adjacent couple: a plain straight marriage line, and their shared
@@ -497,18 +552,27 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     // entirely rather than leaving a connector that dangles or floats with no purpose.
     if (unit.children.length > 0) {
       if (needsUnionEdge) {
+        // The stacked, non-overridden case always resolves to 'right' here too (the
+        // channel is by construction to the wife's right), so this is safe for every
+        // branch — it just also stops a manually placed/dragged dot on the *other* side
+        // from making the line cut back across the spouse's own box to reach it.
+        const sourceSide = exitSide(spousePos.x, unionAnchorPos.x)
+        const sourceHandleX = sourceSide === 'left' ? spousePos.x : spousePos.x + NODE_WIDTH
+        const sourceMidY = spousePos.y + NODE_HEIGHT / 2
+        // The pinned-channel case (unionEdgeCenterX already set) is already proven
+        // crossing-free by construction; anything else is free-form, so pick a bend
+        // that clears every other member's box the same way the marriage line does.
+        const bendX =
+          unionEdgeCenterX ??
+          pickClearBendX(sourceHandleX, sourceMidY, unionAnchorPos.x, unionAnchorPos.y, memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])))
         edges.push({
           id: `spouse-to-union-${unit.key}`,
           source: unit.spouse.id,
-          // The stacked, non-overridden case always resolves to 'right' here too (the
-          // channel is by construction to the wife's right), so this is safe for every
-          // branch — it just also stops a manually placed/dragged dot on the *other* side
-          // from making the line cut back across the spouse's own box to reach it.
-          sourceHandle: exitSide(spousePos.x, unionAnchorPos.x),
+          sourceHandle: sourceSide,
           target: unionId,
           targetHandle: 'in',
           type: 'elbowEdge',
-          data: unionEdgeCenterX !== undefined ? { centerX: unionEdgeCenterX } : undefined,
+          data: { centerX: bendX },
           style: { stroke: color },
         })
       }
@@ -522,7 +586,26 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         selectable: false,
       })
       for (const child of unit.children) {
-        edges.push({ id: `child-${unionId}-${child.id}`, source: unionId, target: child.id, type: 'smoothstep', style: { stroke: color } })
+        // A child can be manually dragged too, same as anyone else — react-flow's own
+        // `smoothstep` router doesn't know about other members' boxes, so a dragged
+        // child could end up with a line cutting through somebody else's. Route it the
+        // same box-avoiding, minimum-turn way as every other free-form connector.
+        const childPos = positions.get(child.id)!
+        const bendX = pickClearBendX(
+          unionAnchorPos.x,
+          unionAnchorPos.y,
+          childPos.x + NODE_WIDTH / 2,
+          childPos.y,
+          memberBoxesExcept(new Set([child.id])),
+        )
+        edges.push({
+          id: `child-${unionId}-${child.id}`,
+          source: unionId,
+          target: child.id,
+          type: 'elbowEdge',
+          data: { centerX: bendX },
+          style: { stroke: color },
+        })
       }
     }
   }
@@ -530,7 +613,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   for (const unit of unitsByKey.values()) {
     if (unit.spouse) continue
     for (const child of unit.children) {
-      edges.push({ id: `child-${unit.anchor.id}-${child.id}`, source: unit.anchor.id, target: child.id, type: 'smoothstep' })
+      const parentPos = positions.get(unit.anchor.id)!
+      const childPos = positions.get(child.id)!
+      const bendX = pickClearBendX(
+        parentPos.x + NODE_WIDTH / 2,
+        parentPos.y + NODE_HEIGHT,
+        childPos.x + NODE_WIDTH / 2,
+        childPos.y,
+        memberBoxesExcept(new Set([unit.anchor.id, child.id])),
+      )
+      edges.push({ id: `child-${unit.anchor.id}-${child.id}`, source: unit.anchor.id, target: child.id, type: 'elbowEdge', data: { centerX: bendX } })
     }
   }
 

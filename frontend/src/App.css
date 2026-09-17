@@ -217,6 +217,16 @@
   color: var(--color-text-muted);
 }
 
+/* Boundary-box feedback while a member box or connector dot is actively being dragged —
+ * separate from `.selected` styling, and outlining the react-flow node wrapper itself so
+ * it exactly traces that node's real footprint (200x96 for a box, the tiny hit-area for a
+ * dot) rather than an approximation. */
+.tree-node-dragging {
+  outline: 2px dashed var(--color-maroon);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
 .union-node {
   width: 1px;
   height: 1px;
