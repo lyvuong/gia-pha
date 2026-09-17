@@ -54,7 +54,7 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
     )
   }
 
-  const bio = member.bioOverride || generateBio(member)
+  const bio = member.bioOverride || generateBio(member, t)
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
   async function handleDelete() {

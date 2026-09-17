@@ -1,20 +1,15 @@
+import type { TFunction } from 'i18next'
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
+import { formatDate } from './formatDate'
 import { generateBio } from './generateBio'
 import { vietnameseCollator } from './normalizeVietnamese'
 import { generationOffset } from './treeLayout'
-import type { Member, NameLabel } from '../types/models'
+import type { Member } from '../types/models'
 
 const PAGE_WIDTH = 210 // A4 mm
 const PAGE_HEIGHT = 297
 const MARGIN = 15
-
-const NAME_LABEL_TEXT: Record<NameLabel, string> = {
-  birthName: 'Tên khai sinh',
-  aka: 'AKA',
-  nicknames: 'Biệt danh',
-  phapDanh: 'Pháp danh',
-}
 
 function mapsUrl(text: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`
@@ -26,16 +21,22 @@ function addWrappedText(doc: jsPDF, text: string, x: number, y: number, maxWidth
   return y + lines.length * lineHeight
 }
 
-export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], treeElement: HTMLElement): Promise<void> {
+export async function exportGiaPhaPdf(
+  giaPhaName: string,
+  members: Member[],
+  treeElement: HTMLElement,
+  t: TFunction,
+  language: string,
+): Promise<void> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const contentWidth = PAGE_WIDTH - MARGIN * 2
 
   // 1. Cover page
   doc.setFontSize(24)
-  doc.text(giaPhaName || 'Gia Phả', PAGE_WIDTH / 2, 120, { align: 'center' })
+  doc.text(giaPhaName || t('app.name'), PAGE_WIDTH / 2, 120, { align: 'center' })
   doc.setFontSize(12)
-  const generatedDate = new Intl.DateTimeFormat('vi-VN').format(new Date())
-  doc.text(`Tạo ngày ${generatedDate}`, PAGE_WIDTH / 2, 132, { align: 'center' })
+  const generatedDate = formatDate(Date.now(), language)
+  doc.text(t('pdf.generatedOn', { date: generatedDate }), PAGE_WIDTH / 2, 132, { align: 'center' })
 
   // 2. Tree diagram snapshot
   const canvas = await html2canvas(treeElement, { backgroundColor: '#ffffff', scale: 2 })
@@ -45,7 +46,7 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
 
   doc.addPage()
   doc.setFontSize(16)
-  doc.text('Cây gia phả', MARGIN, MARGIN)
+  doc.text(t('pdf.familyTree'), MARGIN, MARGIN)
   doc.addImage(imgData, 'PNG', MARGIN, MARGIN + 8, imgWidth, Math.min(imgHeight, PAGE_HEIGHT - MARGIN * 2 - 8))
 
   // 3. Generational listing
@@ -61,7 +62,7 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
   doc.addPage()
   let y = MARGIN
   doc.setFontSize(16)
-  doc.text('Danh sách theo thế hệ', MARGIN, y)
+  doc.text(t('pdf.generationalListing'), MARGIN, y)
   y += 10
 
   for (const generation of generations) {
@@ -72,7 +73,7 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
       y = MARGIN
     }
     doc.setFontSize(13)
-    doc.text(`Thế hệ ${generation + genOffset}`, MARGIN, y)
+    doc.text(t('tree.generation', { n: generation + genOffset }), MARGIN, y)
     y += 7
 
     for (const member of list) {
@@ -94,30 +95,30 @@ export async function exportGiaPhaPdf(giaPhaName: string, members: Member[], tre
 
       for (const entry of member.names) {
         if (!entry.value) continue
-        doc.text(`${NAME_LABEL_TEXT[entry.label]}: ${entry.value}`, MARGIN + 4, y)
+        doc.text(`${t(`member.${entry.label}`)}: ${entry.value}`, MARGIN + 4, y)
         y += 5
       }
       if (member.placeOfBirth) {
         doc.setTextColor(30, 80, 200)
-        doc.textWithLink(`Nơi sinh: ${member.placeOfBirth}`, MARGIN + 4, y, { url: mapsUrl(member.placeOfBirth) })
+        doc.textWithLink(`${t('member.placeOfBirth')}: ${member.placeOfBirth}`, MARGIN + 4, y, { url: mapsUrl(member.placeOfBirth) })
         doc.setTextColor(0, 0, 0)
         y += 5
       }
       if (member.queQuan) {
         doc.setTextColor(30, 80, 200)
-        doc.textWithLink(`Quê quán: ${member.queQuan}`, MARGIN + 4, y, { url: mapsUrl(member.queQuan) })
+        doc.textWithLink(`${t('member.queQuan')}: ${member.queQuan}`, MARGIN + 4, y, { url: mapsUrl(member.queQuan) })
         doc.setTextColor(0, 0, 0)
         y += 5
       }
 
-      const bio = member.bioOverride || generateBio(member)
+      const bio = member.bioOverride || generateBio(member, t)
       if (bio) {
         y = addWrappedText(doc, bio, MARGIN + 4, y, contentWidth - 4)
       }
 
       if (member.stories?.length) {
         doc.setFont('helvetica', 'italic')
-        y = addWrappedText(doc, 'Kỷ niệm & câu chuyện:', MARGIN + 4, y, contentWidth - 4)
+        y = addWrappedText(doc, `${t('stories.title')}:`, MARGIN + 4, y, contentWidth - 4)
         for (const story of member.stories) {
           if (y > PAGE_HEIGHT - MARGIN - 10) {
             doc.addPage()

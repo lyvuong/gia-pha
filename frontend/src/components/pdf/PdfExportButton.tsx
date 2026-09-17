@@ -11,7 +11,7 @@ interface PdfExportButtonProps {
 }
 
 export function PdfExportButton({ giaPhaName, members, treeContainerRef }: PdfExportButtonProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [exporting, setExporting] = useState(false)
 
   async function handleExport() {
@@ -19,7 +19,7 @@ export function PdfExportButton({ giaPhaName, members, treeContainerRef }: PdfEx
     if (!el) return
     setExporting(true)
     try {
-      await exportGiaPhaPdf(giaPhaName, members, el)
+      await exportGiaPhaPdf(giaPhaName, members, el, t, i18n.language)
     } finally {
       setExporting(false)
     }

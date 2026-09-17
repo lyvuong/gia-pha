@@ -94,6 +94,22 @@
     "loading": "Loading invite...",
     "notFound": "This invite link is invalid or has expired."
   },
+  "bio": {
+    "bornInYear": "Born in {{year}}",
+    "bornInYearPlace": "Born in {{year}} in {{place}}",
+    "bornInPlace": "Born in {{place}}",
+    "education": "Education: {{list}}",
+    "degreeAtSchool": "{{degree}} at {{school}}",
+    "occupation": "Occupation: {{occupation}}",
+    "achievements": "Achievements: {{list}}",
+    "diedOn": "Died on {{date}}",
+    "lunarDateSuffix": "{{date}} (lunar calendar)"
+  },
+  "pdf": {
+    "generatedOn": "Generated on {{date}}",
+    "familyTree": "Family Tree",
+    "generationalListing": "Generational Listing"
+  },
   "common": {
     "loading": "Loading...",
     "language": "Language",

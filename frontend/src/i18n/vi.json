@@ -94,6 +94,22 @@
     "loading": "Đang tải lời mời...",
     "notFound": "Liên kết mời không hợp lệ hoặc đã hết hạn."
   },
+  "bio": {
+    "bornInYear": "Sinh năm {{year}}",
+    "bornInYearPlace": "Sinh năm {{year}} tại {{place}}",
+    "bornInPlace": "Sinh tại {{place}}",
+    "education": "Học vấn: {{list}}",
+    "degreeAtSchool": "{{degree}} tại {{school}}",
+    "occupation": "Nghề nghiệp: {{occupation}}",
+    "achievements": "Thành tựu: {{list}}",
+    "diedOn": "Mất ngày {{date}}",
+    "lunarDateSuffix": "{{date}} (âm lịch)"
+  },
+  "pdf": {
+    "generatedOn": "Tạo ngày {{date}}",
+    "familyTree": "Cây gia phả",
+    "generationalListing": "Danh sách theo thế hệ"
+  },
   "common": {
     "loading": "Đang tải...",
     "language": "Ngôn ngữ",
