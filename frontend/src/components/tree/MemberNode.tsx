@@ -15,6 +15,7 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
   const deathYear = member.deathDate ? (member.deathDate.year != null ? String(member.deathDate.year) : '?') : undefined
   const years = deathYear ? `${birthYear ?? '?'}–${deathYear}` : birthYear ? `${birthYear}–` : ''
   const birthName = member.names.find((n) => n.label === 'birthName' && n.value)?.value
+  const maidenName = member.names.find((n) => n.label === 'maidenName' && n.value)?.value
 
   return (
     <div className={`member-node${selected ? ' member-node-selected' : ''}`}>
@@ -29,7 +30,8 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
       <Avatar name={member.fullName} photoUrl={member.photoUrl} size={44} />
       <div className="member-node-info">
         <div className="member-node-name">{member.fullName}</div>
-        {birthName && <div className="member-node-birthname">({birthName})</div>}
+        {birthName && <div className="member-node-altname">({birthName})</div>}
+        {maidenName && <div className="member-node-altname">({maidenName})</div>}
         {years && <div className="member-node-years">{years}</div>}
         <div className="member-node-generation">{t('tree.generation', { n: data.displayGeneration ?? member.generation })}</div>
       </div>
