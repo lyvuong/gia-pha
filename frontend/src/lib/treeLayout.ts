@@ -82,6 +82,17 @@ interface Route extends Record<string, unknown> {
  * that leg to nothing, which is what a *sizable* minimum length is here to rule out. */
 const MIN_LEADER = 16
 
+/** Extra vertical stagger, per assigned trunk row, between the union-to-children trunks
+ * of a remarried anchor's different wives — so two or more such trunks never share the
+ * exact same row (see where this is used). Must be *more* than `MIN_LEADER`: each row's
+ * own bar sits `MIN_LEADER` below its dot, so a smaller gap between rows would let a more
+ * elevated row's bar sink below the very next, less-elevated row's own dot — landing
+ * inside that row's channel (its dot-to-bar leg) instead of clearing it. There's only a
+ * fixed, modest sliver of room between a band's last wife and the next generation for
+ * this to fit in at all, so it's kept just past that minimum rather than
+ * `CHANNEL_SPACING`-sized. */
+const TRUNK_ROW_GAP = MIN_LEADER + 4
+
 function hSegmentClearsBoxes(x0: number, x1: number, y: number, boxes: { x: number; y: number }[]): boolean {
   const lo = Math.min(x0, x1)
   const hi = Math.max(x0, x1)
@@ -609,6 +620,59 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return list
   }
 
+  // Which "trunk row" (0 = closest to the children's own row, 1 = one step further up,
+  // ...) each stacked wife's union-to-children trunk renders on — assigned so two wives
+  // of the same anchor only ever share a row when their trunks can't possibly cross.
+  // A wife's trunk spans horizontally from her own channel x out to her furthest child.
+  // Two wives whose spans overlap *must* go on different rows (sharing one is exactly
+  // what let their bars run flush together as one ambiguous line) — but which of the two
+  // gets the higher (more elevated) row isn't a free choice: every wife's own bar-to-
+  // child legs reach all the way down to the children's shared row, so whichever wife's
+  // span *encloses* the other's — i.e. whose bar has to travel out past the other wife's
+  // own children to reach her own — must be the more elevated one, or her bar, sitting
+  // lower, would cut straight through the enclosed wife's own legs on the way down.
+  // Processing spans widest-first and elevating each new row over every prior one (rather
+  // than assigning by left edge and elevating in discovery order) is what gets this
+  // enclosing/enclosed direction right instead of by accident.
+  const trunkRowByWifeId = new Map<string, number>()
+  {
+    const spansByAnchor = new Map<string, { wifeId: string; lo: number; hi: number }[]>()
+    for (const unit of unitsByKey.values()) {
+      if (!unit.spouse || unit.children.length === 0) continue
+      if ((spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
+      const channelX = channelXByWifeId.get(unit.spouse.id)
+      if (channelX === undefined) continue
+      const childXs = unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
+      const lo = Math.min(channelX, ...childXs)
+      const hi = Math.max(channelX, ...childXs)
+      const list = spansByAnchor.get(unit.anchor.id) ?? []
+      list.push({ wifeId: unit.spouse.id, lo, hi })
+      spansByAnchor.set(unit.anchor.id, list)
+    }
+    for (const spans of spansByAnchor.values()) {
+      spans.sort((a, b) => (b.hi - b.lo) - (a.hi - a.lo))
+      // Track the rightmost `hi` claimed so far on each slot — a span only fits on a slot
+      // whose claimed extent ends before this span begins. Processed widest-first, slot 0
+      // always goes to the single widest span; a later, narrower span only needs a new
+      // slot when it overlaps one already claimed by something *wider* than it (nothing
+      // already placed is ever narrower, by the processing order), so slot number here
+      // already tracks "how many wider spans this one had to be kept clear of."
+      const slotRightEdge: number[] = []
+      const slotByWifeId = new Map<string, number>()
+      for (const span of spans) {
+        let slot = slotRightEdge.findIndex((edge) => edge < span.lo)
+        if (slot === -1) slot = slotRightEdge.length
+        slotRightEdge[slot] = span.hi
+        slotByWifeId.set(span.wifeId, slot)
+      }
+      // Flip slot order into row order: slot 0 (the widest span) needs the *highest,
+      // most-elevated* row, and each narrower slot after it sits one row closer to the
+      // children below.
+      const maxSlot = slotRightEdge.length - 1
+      for (const [wifeId, slot] of slotByWifeId) trunkRowByWifeId.set(wifeId, maxSlot - slot)
+    }
+  }
+
   for (const unit of unitsByKey.values()) {
     const anchorPos = positions.get(unit.anchor.id)
     if (!anchorPos || !unit.spouse) continue
@@ -678,8 +742,17 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         // `pickClearSharedBarY` no space to place a leadered bar at all, so the trunk
         // rendered flush against the children's own top edge — indistinguishable from
         // their boxes' border, making it unreadable which boxes it actually connected to.
+        // Also placed on this wife's own assigned trunk row (see `trunkRowByWifeId`), so
+        // two or more wives of the same anchor whose trunks reach anywhere near each
+        // other never share the exact same row — without it, their bars only differ by
+        // each wife's `channelX` (20px apart) and run flush alongside one another,
+        // reading as one thick, ambiguous line.
         const channelX = channelXByWifeId.get(unit.spouse.id)!
-        unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! - 2 * MIN_LEADER }
+        const trunkRow = trunkRowByWifeId.get(unit.spouse.id) ?? 0
+        unionAnchorPos = {
+          x: channelX,
+          y: bandTop + bandHeightOf.get(unit.anchor.generation)! - 2 * MIN_LEADER - trunkRow * TRUNK_ROW_GAP,
+        }
         needsUnionEdge = true
         unionEdgeCenterX = channelX
       } else {
@@ -734,7 +807,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           const p = positions.get(c.id)!
           return { x: p.x + NODE_WIDTH / 2, y: p.y }
         })
-        const barY = pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes)
+        // A stacked wife's bar is pinned a fixed leader below her own dot (already placed
+        // on a row reserved for her, via `trunkRowByWifeId`) rather than independently
+        // re-searched: `pickClearSharedBarY` has no notion of *other wives'* bars, so its
+        // own free search routinely re-converged two different wives' bars back to
+        // nearly the same y (both searches prefer the midpoint of source and target,
+        // which barely differ), undoing the separation the dots were just given and
+        // crossing another wife's bar or channel right through the middle.
+        const barY = stacked ? unionAnchorPos.y + MIN_LEADER : pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes)
         for (const child of rowChildren) {
           const childCenterX = positions.get(child.id)!.x + NODE_WIDTH / 2
           edges.push({
