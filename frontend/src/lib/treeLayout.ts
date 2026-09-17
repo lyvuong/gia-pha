@@ -532,12 +532,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
-  // A manually placed member that's just a few pixels off from lining up with whoever
-  // it connects to still gets a real bend in the line for that tiny gap — which reads as
-  // an arbitrary stair-step, not a deliberate route. Snap gaps that small away entirely
-  // by nudging *only* the manually placed member (never an automatically placed one,
-  // which would disturb the row-band guarantees the rest of the layout relies on), and
-  // only when nothing else already occupies the spot it would move into.
+  // Anyone — manually placed or not — who's just a few pixels off from lining up with
+  // whoever they connect to still gets a real bend in the line for that tiny gap, which
+  // reads as an arbitrary stair-step rather than a deliberate route (the automatic
+  // layout's own row-packing doesn't try to center a child under its parent, so this
+  // happens even with no dragging involved at all). Snap gaps that small away entirely —
+  // nudging only one member at a time, and only when nothing else already occupies the
+  // spot it would move into, so this can never cascade into disturbing anyone else's
+  // spacing.
   const SNAP_GAP = 24
 
   function boxesOverlap(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
@@ -551,14 +553,19 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return true
   }
 
-  function snapIfClose(moverId: string, axis: 'x' | 'y', targetValue: number) {
-    if (!overridden.has(moverId)) return
+  /** Nudges `moverId` onto `targetValue` along `axis` when the gap is small and the spot
+   * is free, and reports whether it actually moved — so a caller whose first-choice mover
+   * turns out to be blocked can fall back to nudging the other side instead. */
+  function snapIfClose(moverId: string, axis: 'x' | 'y', targetValue: number): boolean {
     const pos = positions.get(moverId)
-    if (!pos) return
+    if (!pos) return false
     const gap = targetValue - pos[axis]
-    if (gap === 0 || Math.abs(gap) > SNAP_GAP) return
+    if (gap === 0) return true
+    if (Math.abs(gap) > SNAP_GAP) return false
     const candidate = axis === 'y' ? { x: pos.x, y: targetValue } : { x: targetValue, y: pos.y }
-    if (canMoveTo(moverId, candidate)) positions.set(moverId, candidate)
+    if (!canMoveTo(moverId, candidate)) return false
+    positions.set(moverId, candidate)
+    return true
   }
 
   for (const unit of unitsByKey.values()) {
@@ -566,15 +573,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     if (!anchorPos) continue
     const spousePos = unit.spouse ? positions.get(unit.spouse.id) : undefined
     if (unit.spouse && spousePos) {
-      // Prefer moving whichever side was actually dragged onto the other's row; if both
-      // were, move the spouse (an arbitrary but consistent choice) onto the anchor's.
-      if (overridden.has(unit.spouse.id)) snapIfClose(unit.spouse.id, 'y', anchorPos.y)
-      else snapIfClose(unit.anchor.id, 'y', spousePos.y)
+      // Try moving the spouse onto the anchor's row first; if that spot's taken, try
+      // moving the anchor onto the spouse's instead.
+      if (!snapIfClose(unit.spouse.id, 'y', anchorPos.y)) snapIfClose(unit.anchor.id, 'y', spousePos.y)
     }
     // Approximates where this unit's union sits (or the parent's own center, for a solo
-    // parent) — close enough to tell whether a dragged child is already almost lined up
-    // with it, even though the union's exact position isn't settled until the edges
-    // below are built.
+    // parent) — close enough to tell whether a child is already almost lined up with it,
+    // even though the union's exact position isn't settled until the edges below are
+    // built.
     const sourceCenterX = spousePos ? (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2 : anchorPos.x + NODE_WIDTH / 2
     for (const child of unit.children) {
       snapIfClose(child.id, 'x', sourceCenterX - NODE_WIDTH / 2)
