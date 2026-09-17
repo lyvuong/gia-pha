@@ -342,6 +342,19 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return [...m.parentIds].sort().join('|')
   }
 
+  /** Where `m`'s own recorded parent(s) already ended up (their channel x, for a stacked
+   * wife, else their plain box x) — the shared basis for ordering a child left-to-right
+   * against its parents' own position, used both to sort a whole block of children
+   * against other blocks in its row, and (within `blockOf`) to sort a remarried parent's
+   * different mothers' sibling-groups against each other inside one merged block. `0` for
+   * someone with no recorded parent in this tree. */
+  function parentAnchorX(m: Member): number {
+    const validParents = m.parentIds.filter((p) => byId.has(p))
+    if (validParents.length === 0) return 0
+    const xs = validParents.map((p) => channelXByWifeId.get(p) ?? positions.get(p)?.x ?? 0)
+    return xs.reduce((a, b) => a + b, 0) / xs.length
+  }
+
   function sortedSpousesIn(person: Member, allowedIds: Set<string>, excluded: Set<string>): Member[] {
     return (spousesOf.get(person.id) ?? [])
       .filter((id) => allowedIds.has(id) && !excluded.has(id))
@@ -353,7 +366,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
    * immediately followed by their own spouse(s) — a remarried sibling's spouses become
    * one 'stack' item instead of being listed side by side. A cluster with nobody recorded
    * as anyone's child (a root-level marriage with no parents of their own) is instead
-   * anchored on whoever has the most spouses, followed by their spouse(s). */
+   * anchored on whoever has the most spouses, followed by their spouse(s).
+   *
+   * A cluster can hold more than one full-sibling set at once — see `clusterInto`, which
+   * also merges in half-siblings sharing a remarried parent, so that parent's children
+   * stay one contiguous block in the row instead of scattering whenever another block's
+   * ordering happens to fall between two of the parent's mothers. Each full-sibling set
+   * is still sorted internally oldest-to-left as before, but the sets themselves are
+   * ordered by their own parents' position (`parentAnchorX`) rather than pooling every
+   * member into one birth-date sort — pooling would happily interleave two mothers'
+   * children by birth year, undoing exactly the contiguous grouping this exists for. */
   function blockOf(clusterMembers: Member[]): BlockItem[] {
     const clusterIds = new Set(clusterMembers.map((m) => m.id))
     const withParents = clusterMembers.filter((m) => siblingKey(m) !== '')
@@ -378,7 +400,12 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
 
     if (withParents.length > 0) {
-      for (const sibling of [...withParents].sort(compareBirthOrder)) appendPerson(sibling)
+      const siblingSets = new Map<string, Member[]>()
+      for (const m of withParents) siblingSets.set(siblingKey(m), [...(siblingSets.get(siblingKey(m)) ?? []), m])
+      const orderedSets = [...siblingSets.values()].sort((a, b) => parentAnchorX(a[0]) - parentAnchorX(b[0]))
+      for (const siblingSet of orderedSets) {
+        for (const sibling of [...siblingSet].sort(compareBirthOrder)) appendPerson(sibling)
+      }
     } else {
       const anchor = clusterMembers.reduce((best, m) =>
         (spouseCountOf.get(m.id) ?? 0) > (spouseCountOf.get(best.id) ?? 0) ? m : best,
@@ -391,7 +418,15 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
 
   /** Clusters a generation's members into family blocks via union-find over sibling and
    * spouse links, so a boundary between two unrelated blocks can get extra spacing and a
-   * divider line. */
+   * divider line. Also unions half-siblings who share a remarried ("stacked") parent —
+   * without it, each mother's children form their own independent block, sorted purely by
+   * her own channel x, and any other unrelated block whose anchor x happens to fall
+   * between two of those mothers ends up wedged between them. Since every wife of that
+   * parent still needs to route a trunk line down to her own children afterward (see
+   * `trunkRowByWifeId`), scattering them like that is exactly what forces one wife's
+   * trunk to reach out past another's, which is what leads to a crossing no amount of
+   * trunk-row juggling alone can avoid. Keeping them one contiguous block sidesteps the
+   * problem at its source instead. */
   function clusterInto(rowMembers: Member[]): Member[][] {
     const parent = new Map<string, string>(rowMembers.map((m) => [m.id, m.id]))
     const find = (id: string): string => {
@@ -413,6 +448,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       byKey.set(key, [...(byKey.get(key) ?? []), m.id])
     }
     for (const ids of byKey.values()) for (let i = 1; i < ids.length; i++) union(ids[0], ids[i])
+    const byStackedParent = new Map<string, string[]>()
+    for (const m of rowMembers) {
+      for (const p of m.parentIds) {
+        if (!byId.has(p) || (spouseCountOf.get(p) ?? 0) < 2) continue
+        byStackedParent.set(p, [...(byStackedParent.get(p) ?? []), m.id])
+      }
+    }
+    for (const ids of byStackedParent.values()) for (let i = 1; i < ids.length; i++) union(ids[0], ids[i])
     const idsInRow = new Set(rowMembers.map((m) => m.id))
     for (const m of rowMembers) {
       for (const s of spousesOf.get(m.id) ?? []) if (idsInRow.has(s)) union(m.id, s)
@@ -474,14 +517,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       // cross. A block with no parents in this tree (a root ancestor, or an anchor
       // whose own marriages have no recorded parents) falls back to birth order.
       const withParents = flat.find((m) => m.parentIds.some((p) => byId.has(p)))
-      let anchorX: number
-      if (withParents) {
-        const validParents = withParents.parentIds.filter((p) => byId.has(p))
-        const parentXs = validParents.map((p) => channelXByWifeId.get(p) ?? positions.get(p)?.x ?? 0)
-        anchorX = parentXs.reduce((a, b) => a + b, 0) / parentXs.length
-      } else {
-        anchorX = flat[0].birthDate ? Date.parse(flat[0].birthDate) : 0
-      }
+      const anchorX = withParents ? parentAnchorX(withParents) : flat[0].birthDate ? Date.parse(flat[0].birthDate) : 0
       return { items, anchorX }
     })
     blocks.sort((a, b) => a.anchorX - b.anchorX)
