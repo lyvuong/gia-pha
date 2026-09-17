@@ -4,7 +4,7 @@ import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
-import { resetTreePosition, resetUnionTreePosition, trashMember } from '../../hooks/useMembers'
+import { trashMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
 import { AddRelativeFlow } from './AddRelativeFlow'
 import { MemberEditForm } from './MemberEditForm'
@@ -63,14 +63,6 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
     onDeleted()
   }
 
-  async function handleResetPosition() {
-    await resetTreePosition(giaPha.id, member.id, currentUid)
-  }
-
-  async function handleResetUnionPosition() {
-    await resetUnionTreePosition(giaPha.id, member.id, currentUid)
-  }
-
   return (
     <div className="member-detail-panel">
       <button type="button" className="panel-close" onClick={onClose}>×</button>
@@ -125,17 +117,6 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
         <button type="button" onClick={() => setAddingRelative(true)}>{t('member.addRelativeShort')}</button>
         <button type="button" onClick={handleDelete}>{t('member.moveToTrash')}</button>
       </div>
-      {member.treePosition && (
-        <button type="button" className="reset-position-button" onClick={handleResetPosition}>
-          {t('member.resetPosition')}
-        </button>
-      )}
-      {member.unionTreePosition && (
-        <button type="button" className="reset-position-button" onClick={handleResetUnionPosition}>
-          {t('member.resetUnionPosition')}
-        </button>
-      )}
-
       <StoriesList
         giaPhaId={giaPha.id}
         member={member}

@@ -25,11 +25,9 @@ export interface TreeNodeData extends Record<string, unknown> {
   displayGeneration?: number
   /** Union-node only: the color shared with its spouse line and its children's edges. */
   color?: string
-  /** Union-node only: the non-anchor spouse this union belongs to — where a manual drag
-   * override for this specific dot is persisted (see `Member.unionTreePosition`). */
+  /** Union-node only: the non-anchor spouse this union belongs to. */
   spouseId?: string
-  /** Union-node only: the other half of the couple, used (along with `spouseId`'s own
-   * position) to compute this dot's two drag-snap candidates. */
+  /** Union-node only: the other half of the couple. */
   anchorId?: string
 }
 
@@ -57,7 +55,7 @@ function pairKey(a: string, b: string): string {
 /** Which side of a box at `boxX` a connector should leave from to reach `towardX`, so the
  * line heads straight for its target instead of exiting the far side and doubling back
  * across the box itself (which is what happens if a handle is hardcoded to one side
- * without checking where the other end actually ended up — e.g. after a manual drag). */
+ * without checking where the other end actually ended up). */
 function exitSide(boxX: number, towardX: number): 'left' | 'right' {
   return towardX < boxX + NODE_WIDTH / 2 ? 'left' : 'right'
 }
@@ -129,17 +127,15 @@ function searchOutward(mid: number, step: number, maxSteps: number, hasLeader: (
   return undefined
 }
 
-/** Where a horizontal-leadered elbow connector (one without the layout's own precomputed
- * crossing-free guarantees — a manual drag, or a manually moved connector dot — between
- * two boxes joined on their left/right edges) should bend, so both the leg leaving the
- * source and the leg entering the target run a real, visible distance horizontally
- * before turning: prefers the true midpoint (equal leaders on both sides), searching
- * outward from it when that's blocked by some other member's box. None of those can help
- * when the source's *own row* is blocked for its entire width to the target — no
- * horizontal bend, wherever placed, dodges an obstacle sitting directly on the row it
- * would have to leave along. When every bend option fails, this ducks to a nearby row
- * that's clear before crossing over, adding one extra corner rather than cutting through
- * whatever's in the way. */
+/** Where a horizontal-leadered elbow connector (between two boxes joined on their
+ * left/right edges) should bend, so both the leg leaving the source and the leg entering
+ * the target run a real, visible distance horizontally before turning: prefers the true
+ * midpoint (equal leaders on both sides), searching outward from it when that's blocked
+ * by some other member's box. None of those can help when the source's *own row* is
+ * blocked for its entire width to the target — no horizontal bend, wherever placed,
+ * dodges an obstacle sitting directly on the row it would have to leave along. When every
+ * bend option fails, this ducks to a nearby row that's clear before crossing over, adding
+ * one extra corner rather than cutting through whatever's in the way. */
 function pickClearRoute(
   sourceX: number,
   sourceY: number,
@@ -216,7 +212,7 @@ function pickClearSharedBarY(sourceX: number, sourceY: number, targets: { x: num
  * (matching the classic "dot centered between the couple" look), or the detour's own
  * elbow for a route that had to duck around something. Uses the layout's own estimate of
  * each endpoint's position (not react-flow's measured one, which this function has no
- * access to) — close enough for placing a *draggable* node, unlike the line itself, which
+ * access to) — close enough for placing the union node, unlike the line itself, which
  * must be pixel-exact (see `ElbowEdge`). */
 function midpointOnRoute(route: Route, sourceY: number, targetY: number): Point {
   if (route.viaY === undefined) return { x: route.centerX, y: (sourceY + targetY) / 2 }
@@ -522,21 +518,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // rather than vanishing.
   members.filter((m) => !visited.has(m.id)).forEach((m, i) => positions.set(m.id, { x: i * (NODE_WIDTH + HORIZONTAL_GAP), y: 0 }))
 
-  // A manual drag (see `Member.treePosition`) overrides the automatic position for just
-  // that one member — everyone else stays exactly where the automatic layout put them.
-  const overridden = new Set<string>()
-  for (const m of members) {
-    if (m.treePosition) {
-      positions.set(m.id, m.treePosition)
-      overridden.add(m.id)
-    }
-  }
-
-  // Anyone — manually placed or not — who's just a few pixels off from lining up with
-  // whoever they connect to still gets a real bend in the line for that tiny gap, which
-  // reads as an arbitrary stair-step rather than a deliberate route (the automatic
-  // layout's own row-packing doesn't try to center a child under its parent, so this
-  // happens even with no dragging involved at all). Snap gaps that small away entirely —
+  // Anyone who's just a few pixels off from lining up with whoever they connect to still
+  // gets a real bend in the line for that tiny gap, which reads as an arbitrary
+  // stair-step rather than a deliberate route (the automatic layout's own row-packing
+  // doesn't try to center a child under its parent). Snap gaps that small away entirely —
   // nudging only one member at a time, and only when nothing else already occupies the
   // spot it would move into, so this can never cascade into disturbing anyone else's
   // spacing.
@@ -629,66 +614,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     if (!anchorPos || !unit.spouse) continue
     const spousePos = positions.get(unit.spouse.id)!
     const color = unionColors.get(unit.key)
-    // A manually dragged member (either side of the pair) has left whatever slot the
-    // automatic layout's no-crossing guarantees were computed for, so those guarantees —
-    // and the pinned-line machinery that provides them — no longer apply here. Fall back
-    // to a plain, unpinned orthogonal connector instead: still never diagonal, just no
-    // longer promised crossing-free against the rest of the row.
-    const manuallyPlaced = overridden.has(unit.anchor.id) || overridden.has(unit.spouse.id)
-    const stacked = !manuallyPlaced && (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
+    const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
     const unionId = `union-${unit.key}`
-    // The connector dot itself can also be manually dragged (see `Member.unionTreePosition`,
-    // stored on the non-anchor spouse) — independent of whether either box was moved —
-    // to nudge just the bend point when that alone would clear a crossing.
-    const unionOverride = unit.spouse.unionTreePosition
     let unionAnchorPos: { x: number; y: number }
-    // Whether a `spouse-to-union` connector edge is needed: automatic & adjacent couples
-    // don't need one (the dot sits right on the marriage line already), but any manually
-    // placed party or dot does, or the dot would float disconnected from its couple.
+    // Whether a `spouse-to-union` connector edge is needed: an ordinary adjacent couple
+    // doesn't need one (the dot sits right on the marriage line already), but a stacked
+    // remarried anchor's wife does, or the dot would float disconnected from its couple.
     let needsUnionEdge = false
     let unionEdgeCenterX: number | undefined
-    // When a spouse-to-union line is still needed alongside a marriage line, try to
-    // reuse that line's own bend first, so the two merge into one visual line wherever
-    // they'd otherwise run alongside each other (see `pickClearRoute`'s `preferredX`).
-    let preferredUnionBendX: number | undefined
 
-    if (manuallyPlaced) {
-      // A dragged box could have landed on either side of its spouse, above or below —
-      // pick whichever handle actually faces the other party instead of assuming anchor
-      // is left, so the line heads straight there instead of exiting the far side and
-      // cutting back across its own box to get there.
-      const anchorSide = exitSide(anchorPos.x, spousePos.x + NODE_WIDTH / 2)
-      const spouseSide = exitSide(spousePos.x, anchorPos.x + NODE_WIDTH / 2)
-      const anchorHandleX = anchorSide === 'left' ? anchorPos.x : anchorPos.x + NODE_WIDTH
-      const spouseHandleX = spouseSide === 'left' ? spousePos.x : spousePos.x + NODE_WIDTH
-      const anchorMidY = anchorPos.y + NODE_HEIGHT / 2
-      const spouseMidY = spousePos.y + NODE_HEIGHT / 2
-      const marriageRoute = pickClearRoute(
-        anchorHandleX,
-        anchorMidY,
-        spouseHandleX,
-        spouseMidY,
-        memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])),
-      )
-      edges.push({
-        id: `spouse-${unit.anchor.id}-${unit.spouse.id}`,
-        source: unit.anchor.id,
-        sourceHandle: anchorSide,
-        target: unit.spouse.id,
-        targetHandle: spouseSide,
-        type: 'elbowEdge',
-        data: marriageRoute,
-        style: { stroke: color },
-      })
-      // Sits on the marriage line's own route, wherever that ended up, so the dot is
-      // never left floating off to the side of the line it's supposed to be on — and,
-      // sitting exactly on that route, needs no separate line back to it (which would
-      // just be a second, independently-bent near-duplicate of the marriage line itself)
-      // unless it's *also* been dragged somewhere else.
-      unionAnchorPos = midpointOnRoute(marriageRoute, anchorMidY, spouseMidY)
-      needsUnionEdge = !!unionOverride
-      preferredUnionBendX = marriageRoute.centerX
-    } else if (!stacked) {
+    if (!stacked) {
       // An ordinary, adjacent couple: routed the same leader-enforced, box-avoiding way
       // as every other marriage line (see `pickClearRoute`) rather than a hardcoded
       // straight line — since they're already side by side at the same row, this always
@@ -713,8 +648,6 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         style: { stroke: color },
       })
       unionAnchorPos = midpointOnRoute(marriageRoute, leftMidY, rightMidY)
-      needsUnionEdge = !!unionOverride
-      preferredUnionBendX = marriageRoute.centerX
     } else {
       // A remarried anchor's wives are stacked in one column to their right (see
       // `blockOf`). Every line from the anchor to a wife is pinned (via `centerX`) to
@@ -742,7 +675,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         const channelX = channelXByWifeId.get(unit.spouse.id)!
         unionAnchorPos = { x: channelX, y: bandTop + bandHeightOf.get(unit.anchor.generation)! }
         needsUnionEdge = true
-        unionEdgeCenterX = unionOverride ? undefined : channelX
+        unionEdgeCenterX = channelX
       } else {
         // No children, so no union dot will be rendered at all (see below) — this value
         // is never used, just here to satisfy definite assignment.
@@ -750,34 +683,15 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       }
     }
 
-    if (unionOverride) unionAnchorPos = unionOverride
-
     // A couple with no children has nothing for a union dot to connect to — the marriage
     // line above already shows they're a couple, so skip the dot (and any line to it)
     // entirely rather than leaving a connector that dangles or floats with no purpose.
     if (unit.children.length > 0) {
       if (needsUnionEdge) {
-        // The stacked, non-overridden case always resolves to 'right' here too (the
-        // channel is by construction to the wife's right), so this is safe for every
-        // branch — it just also stops a manually placed/dragged dot on the *other* side
-        // from making the line cut back across the spouse's own box to reach it.
+        // The channel is by construction to the wife's right, so this is always 'right' —
+        // computed via `exitSide` anyway to stay honest with however the channel math
+        // above ends up placing it.
         const sourceSide = exitSide(spousePos.x, unionAnchorPos.x)
-        const sourceHandleX = sourceSide === 'left' ? spousePos.x : spousePos.x + NODE_WIDTH
-        const sourceMidY = spousePos.y + NODE_HEIGHT / 2
-        // The pinned-channel case (unionEdgeCenterX already set) is already proven
-        // crossing-free by construction; anything else is free-form, so pick a route
-        // that clears every other member's box the same way the marriage line does.
-        const route: Route =
-          unionEdgeCenterX !== undefined
-            ? { centerX: unionEdgeCenterX }
-            : pickClearRoute(
-                sourceHandleX,
-                sourceMidY,
-                unionAnchorPos.x,
-                unionAnchorPos.y,
-                memberBoxesExcept(new Set([unit.anchor.id, unit.spouse.id])),
-                preferredUnionBendX,
-              )
         edges.push({
           id: `spouse-to-union-${unit.key}`,
           source: unit.spouse.id,
@@ -785,7 +699,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           target: unionId,
           targetHandle: 'in',
           type: 'elbowEdge',
-          data: route,
+          data: { centerX: unionEdgeCenterX! },
           style: { stroke: color },
         })
       }
@@ -795,17 +709,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         type: 'unionNode',
         position: unionAnchorPos,
         data: { color, spouseId: unit.spouse.id, anchorId: unit.anchor.id },
-        draggable: true,
         selectable: false,
       })
-      // A child can be manually dragged too, same as anyone else — react-flow's own
-      // `smoothstep` router doesn't know about other members' boxes, so a dragged child
-      // could end up with a line cutting through somebody else's. Route it the same
-      // box-avoiding way as every other free-form connector — vertically leadered on
-      // both ends, since a union's and a child's own handles both face top/bottom — and
-      // group siblings by their actual rendered row (not just the layout's generation
-      // band, since a dragged child can land anywhere) so each group shares one bar
-      // (see `pickClearSharedBarY`) instead of each child computing its own separately.
+      // Route each union-to-child line the same box-avoiding way as every other
+      // connector — vertically leadered on both ends, since a union's and a child's own
+      // handles both face top/bottom — grouping siblings by their shared row (always one
+      // row per unit, since every child in a unit sits in the same generation band) so
+      // they share one bar (see `pickClearSharedBarY`) instead of each child computing
+      // its own separately.
       const childBoxes = memberBoxesExcept(new Set(unit.children.map((c) => c.id)))
       const childrenByRow = new Map<number, Member[]>()
       for (const child of unit.children) {
