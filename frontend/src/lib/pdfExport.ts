@@ -4,12 +4,19 @@ import { jsPDF } from 'jspdf'
 import { formatDate } from './formatDate'
 import { generateBio } from './generateBio'
 import { vietnameseCollator } from './normalizeVietnamese'
+import { NOTO_SANS_BOLD_BASE64, NOTO_SANS_REGULAR_BASE64 } from './notoSansFont'
 import { generationOffset } from './treeLayout'
 import type { Member } from '../types/models'
 
 const PAGE_WIDTH = 210 // A4 mm
 const PAGE_HEIGHT = 297
 const MARGIN = 15
+/** jsPDF's built-in fonts (Helvetica etc.) are the PDF standard-14 fonts, which only cover
+ * Latin-1 — every Vietnamese diacritic renders as a missing-glyph box. Noto Sans is
+ * embedded instead (see notoSansFont.ts) for both weights this export actually uses; there's
+ * no embedded italic, so italic styling is skipped rather than risk jsPDF failing to find a
+ * (font, style) pair that was never registered. */
+const FONT_NAME = 'NotoSans'
 
 function mapsUrl(text: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`
@@ -29,6 +36,11 @@ export async function exportGiaPhaPdf(
   language: string,
 ): Promise<void> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  doc.addFileToVFS('NotoSans-Regular.ttf', NOTO_SANS_REGULAR_BASE64)
+  doc.addFont('NotoSans-Regular.ttf', FONT_NAME, 'normal')
+  doc.addFileToVFS('NotoSans-Bold.ttf', NOTO_SANS_BOLD_BASE64)
+  doc.addFont('NotoSans-Bold.ttf', FONT_NAME, 'bold')
+  doc.setFont(FONT_NAME, 'normal')
   const contentWidth = PAGE_WIDTH - MARGIN * 2
 
   // 1. Cover page
@@ -88,9 +100,9 @@ export async function exportGiaPhaPdf(
         : member.birthDate
           ? `(${member.birthDate.slice(0, 4)}–)`
           : ''
-      doc.setFont('helvetica', 'bold')
+      doc.setFont(FONT_NAME, 'bold')
       doc.text(`${member.fullName} ${years}`, MARGIN, y)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont(FONT_NAME, 'normal')
       y += 5
 
       for (const entry of member.names) {
@@ -117,7 +129,6 @@ export async function exportGiaPhaPdf(
       }
 
       if (member.stories?.length) {
-        doc.setFont('helvetica', 'italic')
         y = addWrappedText(doc, `${t('stories.title')}:`, MARGIN + 4, y, contentWidth - 4)
         for (const story of member.stories) {
           if (y > PAGE_HEIGHT - MARGIN - 10) {
@@ -126,7 +137,6 @@ export async function exportGiaPhaPdf(
           }
           y = addWrappedText(doc, `• ${story.text}`, MARGIN + 8, y, contentWidth - 8)
         }
-        doc.setFont('helvetica', 'normal')
       }
 
       y += 4
