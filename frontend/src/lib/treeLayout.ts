@@ -658,21 +658,25 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
 
   // Which "trunk row" (0 = closest to the children's own row, 1 = one step further up,
   // ...) each stacked wife's union-to-children trunk renders on — assigned so two wives
-  // of the same anchor only ever share a row when their trunks can't possibly cross.
+  // of the same anchor never cross each other's trunk, and never share a row when their
+  // bars would otherwise run flush together as one ambiguous line.
+  //
   // A wife's trunk spans horizontally from her own channel x out to her furthest child.
-  // Two wives whose spans overlap *must* go on different rows (sharing one is exactly
-  // what let their bars run flush together as one ambiguous line) — but which of the two
-  // gets the higher (more elevated) row isn't a free choice: every wife's own bar-to-
-  // child legs reach all the way down to the children's shared row, so whichever wife's
-  // span *encloses* the other's — i.e. whose bar has to travel out past the other wife's
-  // own children to reach her own — must be the more elevated one, or her bar, sitting
-  // lower, would cut straight through the enclosed wife's own legs on the way down.
-  // Processing spans widest-first and elevating each new row over every prior one (rather
-  // than assigning by left edge and elevating in discovery order) is what gets this
-  // enclosing/enclosed direction right instead of by accident.
+  // Whenever two wives' spans overlap at all, they need separate rows just to stay
+  // visually distinct — but *which* of the two gets the more elevated row is a real
+  // constraint, not a free choice: a less-elevated wife's bar sits *below* a more-elevated
+  // wife's own dot, so it only ever risks crossing that wife's *channel* (the line from
+  // her own box down to her dot) — never her bar or her legs into her own children, both
+  // of which sit lower still. So the one and only hazard to avoid is a wife's bar
+  // sweeping across another wife's channel x while sitting *below* that wife's row —
+  // which happens exactly when the less-elevated wife's span contains the more-elevated
+  // wife's channel x. Elevating whichever wife's channel the other's span would otherwise
+  // sweep across (not just whichever wife's span is wider — a wider span can still be
+  // crossing-free if it happens to miss the other's channel x specifically) is what
+  // actually avoids it.
   const trunkRowByWifeId = new Map<string, number>()
   {
-    const spansByAnchor = new Map<string, { wifeId: string; lo: number; hi: number }[]>()
+    const wivesByAnchor = new Map<string, { wifeId: string; channelX: number; lo: number; hi: number }[]>()
     for (const unit of unitsByKey.values()) {
       if (!unit.spouse || unit.children.length === 0) continue
       if ((spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
@@ -681,31 +685,49 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       const childXs = unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
       const lo = Math.min(channelX, ...childXs)
       const hi = Math.max(channelX, ...childXs)
-      const list = spansByAnchor.get(unit.anchor.id) ?? []
-      list.push({ wifeId: unit.spouse.id, lo, hi })
-      spansByAnchor.set(unit.anchor.id, list)
+      const list = wivesByAnchor.get(unit.anchor.id) ?? []
+      list.push({ wifeId: unit.spouse.id, channelX, lo, hi })
+      wivesByAnchor.set(unit.anchor.id, list)
     }
-    for (const spans of spansByAnchor.values()) {
-      spans.sort((a, b) => (b.hi - b.lo) - (a.hi - a.lo))
-      // Track the rightmost `hi` claimed so far on each slot — a span only fits on a slot
-      // whose claimed extent ends before this span begins. Processed widest-first, slot 0
-      // always goes to the single widest span; a later, narrower span only needs a new
-      // slot when it overlaps one already claimed by something *wider* than it (nothing
-      // already placed is ever narrower, by the processing order), so slot number here
-      // already tracks "how many wider spans this one had to be kept clear of."
-      const slotRightEdge: number[] = []
-      const slotByWifeId = new Map<string, number>()
-      for (const span of spans) {
-        let slot = slotRightEdge.findIndex((edge) => edge < span.lo)
-        if (slot === -1) slot = slotRightEdge.length
-        slotRightEdge[slot] = span.hi
-        slotByWifeId.set(span.wifeId, slot)
+    for (const wives of wivesByAnchor.values()) {
+      // [lower, higher]: `lower` must end up on a strictly smaller row than `higher`.
+      const constraints: [string, string][] = []
+      for (let i = 0; i < wives.length; i++) {
+        for (let j = i + 1; j < wives.length; j++) {
+          const a = wives[i]
+          const b = wives[j]
+          if (a.lo >= b.hi || b.lo >= a.hi) continue // spans don't overlap at all
+          const aSweepsB = b.channelX > a.lo && b.channelX < a.hi
+          const bSweepsA = a.channelX > b.lo && a.channelX < b.hi
+          if (aSweepsB && !bSweepsA) constraints.push([a.wifeId, b.wifeId])
+          else if (bSweepsA && !aSweepsB) constraints.push([b.wifeId, a.wifeId])
+          else {
+            // Either direction is equally crossing-free (or equally not) — fall back to
+            // elevating whoever reaches further, for a stable, deterministic result.
+            const [narrower, wider] = a.hi - a.lo <= b.hi - b.lo ? [a, b] : [b, a]
+            constraints.push([narrower.wifeId, wider.wifeId])
+          }
+        }
       }
-      // Flip slot order into row order: slot 0 (the widest span) needs the *highest,
-      // most-elevated* row, and each narrower slot after it sits one row closer to the
-      // children below.
-      const maxSlot = slotRightEdge.length - 1
-      for (const [wifeId, slot] of slotByWifeId) trunkRowByWifeId.set(wifeId, maxSlot - slot)
+      // Layer wives into rows via topological sort on `constraints`: a wife is safe to
+      // place on the current (lowest still-open) row once every wife that must be *below*
+      // her has already been placed on an earlier one. A genuine cycle (each of two wives'
+      // spans sweeps across the other's channel — no elevation choice avoids it) can't be
+      // resolved by row order at all; the fallback just places whatever's left so this
+      // always terminates instead of looping forever.
+      const remaining = new Set(wives.map((w) => w.wifeId))
+      let row = 0
+      while (remaining.size > 0) {
+        const ready = [...remaining].filter(
+          (id) => !constraints.some(([lower, higher]) => higher === id && remaining.has(lower)),
+        )
+        const batch = ready.length > 0 ? ready : [...remaining]
+        for (const id of batch) {
+          trunkRowByWifeId.set(id, row)
+          remaining.delete(id)
+        }
+        row++
+      }
     }
   }
 
