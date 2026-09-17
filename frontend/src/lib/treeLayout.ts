@@ -662,12 +662,27 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
+  // A remarried anchor's own wives are colored from their own dedicated, zero-based run
+  // through the palette (colorIndexByAnchor), instead of sharing the single tree-wide
+  // cycle every other couple draws from — so which colors two *sibling* wives land on
+  // never depends on how many unrelated couples happen to sit between them in iteration
+  // order. Two wives who are actually stacked together, right next to each other, are
+  // exactly the pair whose colors most need to read as different at a glance; leaving
+  // that to the global cycle risked them landing on two colors that are close in hue
+  // (`UNION_COLORS` has two blues and three orange/browns) purely by coincidence.
   let colorIndex = 0
+  const colorIndexByAnchor = new Map<string, number>()
   const unionColors = new Map<string, string>()
   for (const unit of unitsByKey.values()) {
     if (!unit.spouse) continue
-    unionColors.set(unit.key, UNION_COLORS[colorIndex % UNION_COLORS.length])
-    colorIndex++
+    if ((spouseCountOf.get(unit.anchor.id) ?? 0) >= 2) {
+      const local = colorIndexByAnchor.get(unit.anchor.id) ?? 0
+      unionColors.set(unit.key, UNION_COLORS[local % UNION_COLORS.length])
+      colorIndexByAnchor.set(unit.anchor.id, local + 1)
+    } else {
+      unionColors.set(unit.key, UNION_COLORS[colorIndex % UNION_COLORS.length])
+      colorIndex++
+    }
   }
 
   const genOffset = generationOffset(members)
