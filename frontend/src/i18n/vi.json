@@ -72,8 +72,9 @@
     "addRelativeShort": "Thêm người thân",
     "chooseRelationship": "Mối quan hệ",
     "siblingOrder": "Thứ tự giữa anh chị em",
-    "moveSiblingUp": "Chuyển lên trước",
-    "moveSiblingDown": "Chuyển xuống sau"
+    "spouseOrder": "Thứ tự giữa các vợ/chồng",
+    "moveEarlier": "Chuyển lên trước",
+    "moveLater": "Chuyển xuống sau"
   },
   "relationship": {
     "father": "Cha",

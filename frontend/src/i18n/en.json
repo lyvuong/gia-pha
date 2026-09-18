@@ -72,8 +72,9 @@
     "addRelativeShort": "Add relative",
     "chooseRelationship": "Relationship",
     "siblingOrder": "Order among siblings",
-    "moveSiblingUp": "Move earlier",
-    "moveSiblingDown": "Move later"
+    "spouseOrder": "Order among spouses",
+    "moveEarlier": "Move earlier",
+    "moveLater": "Move later"
   },
   "relationship": {
     "father": "Father",

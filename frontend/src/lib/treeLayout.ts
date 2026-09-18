@@ -245,21 +245,44 @@ export function siblingKey(m: Member): string {
   return [...m.parentIds].sort().join('|')
 }
 
-/** Orders two (usually full-sibling) members oldest-to-left. `siblingOrder` is a manual
- * override for exactly the case `birthDate` can't handle: when neither sibling's actual
- * birth date is known, there's nothing to sort by, so the layout falls back to whatever
- * order the members happen to come back from storage in — which is arbitrary and can
- * land a married-in in-law's spouse in the *middle* of their own siblings instead of at
- * an edge (see the trunk-crossing case this was added for). Whenever *either* side has a
- * `siblingOrder` set, it wins outright over `birthDate` — once a person's been manually
- * placed, an unrelated birth date shouldn't silently override that — and a sibling with
- * no `siblingOrder` of their own defaults to `0` so setting it on just the *one* member
- * being repositioned (e.g. moving them to the end) is enough on its own; it doesn't
- * require every sibling to have one for the comparison to make sense. */
+/** Orders two members oldest-to-left — used both for full siblings and, via
+ * `sortedSpousesIn`, for a remarried person's several spouses stacked in one column
+ * (see `computeTreeLayout`). `siblingOrder` is a manual override for exactly the case
+ * `birthDate` can't handle: when neither side's actual birth date is known, there's
+ * nothing to sort by, so the layout falls back to whatever order the members happen to
+ * come back from storage in — which is arbitrary and can land a married-in in-law's
+ * spouse in the *middle* of their own siblings instead of at an edge, or an unrelated
+ * wife out of the order she was actually married in (see the trunk-crossing case this
+ * was added for). Whenever *either* side has a `siblingOrder` set, it wins outright over
+ * `birthDate` — once a person's been manually placed, an unrelated birth date shouldn't
+ * silently override that — and a member with no `siblingOrder` of their own defaults to
+ * `0` so setting it on just the *one* member being repositioned (e.g. moving them to the
+ * end) is enough on its own; it doesn't require every peer to have one for the
+ * comparison to make sense. */
 export function compareBirthOrder(a: Member, b: Member): number {
   if (a.siblingOrder != null || b.siblingOrder != null) return (a.siblingOrder ?? 0) - (b.siblingOrder ?? 0)
   if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
   return 0
+}
+
+/** Every other spouse `member` shares a common, remarried spouse with (that shared
+ * spouse's full "stack"), for offering manual reordering among them the same way
+ * `siblingKey` offers it for full siblings — `[]` when `member` isn't one of at least two
+ * spouses of the same person. Checks *either* side's `spouseIds` for a link, the same way
+ * `computeTreeLayout`'s own `spousePairs` does, since nothing elsewhere enforces both
+ * members of a couple always listing each other back. */
+export function coSpouses(member: Member, members: Member[]): Member[] {
+  const isLinked = (aId: string, bId: string): boolean => {
+    const a = members.find((m) => m.id === aId)
+    const b = members.find((m) => m.id === bId)
+    return (a?.spouseIds.includes(bId) ?? false) || (b?.spouseIds.includes(aId) ?? false)
+  }
+  const anchors = members.filter((m) => m.id !== member.id && isLinked(member.id, m.id))
+  for (const anchor of anchors) {
+    const group = members.filter((m) => m.id !== anchor.id && isLinked(anchor.id, m.id))
+    if (group.length >= 2) return group.sort((a, b) => compareBirthOrder(a, b) || a.id.localeCompare(b.id))
+  }
+  return []
 }
 
 /** One couple (or a single recorded parent) plus their children. */

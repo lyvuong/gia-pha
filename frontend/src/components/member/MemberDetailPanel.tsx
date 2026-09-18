@@ -4,7 +4,7 @@ import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
-import { compareBirthOrder, siblingKey } from '../../lib/treeLayout'
+import { compareBirthOrder, coSpouses, siblingKey } from '../../lib/treeLayout'
 import { trashMember, updateMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
 import { AddRelativeFlow } from './AddRelativeFlow'
@@ -19,6 +19,39 @@ interface MemberDetailPanelProps {
   editorNames: Record<string, string>
   onClose: () => void
   onDeleted: () => void
+}
+
+/** "Move earlier/later" controls for repositioning `member` within `group` (their full
+ * siblings, or their share of a remarried spouse's several spouses — see `siblingKey` and
+ * `coSpouses`). Shared by both so the two read and behave identically. */
+function ReorderControl({ giaPhaId, currentUid, label, group, member }: { giaPhaId: string; currentUid: string; label: string; group: Member[]; member: Member }) {
+  const { t } = useTranslation()
+  const index = group.findIndex((m) => m.id === member.id)
+
+  // Persists an explicit `siblingOrder` (0, 1, 2, ...) onto *every* member of `group` at
+  // once — not just the two that swapped. Once any one of them has a manual order,
+  // `compareBirthOrder` prefers it over `birthDate` for the whole group, so leaving the
+  // others unset would let a random birth date reshuffle them right back around the two
+  // that were just deliberately placed.
+  async function move(direction: -1 | 1) {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= group.length) return
+    const reordered = [...group]
+    ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
+    await Promise.all(reordered.map((m, i) => updateMember(giaPhaId, m.id, { siblingOrder: i }, currentUid)))
+  }
+
+  return (
+    <div className="sibling-order-actions">
+      <span>{label}</span>
+      <button type="button" onClick={() => move(-1)} disabled={index <= 0} aria-label={t('member.moveEarlier')} title={t('member.moveEarlier')}>
+        ↑
+      </button>
+      <button type="button" onClick={() => move(1)} disabled={index >= group.length - 1} aria-label={t('member.moveLater')} title={t('member.moveLater')}>
+        ↓
+      </button>
+    </div>
+  )
 }
 
 export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted }: MemberDetailPanelProps) {
@@ -58,31 +91,19 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
   const bio = member.bioOverride || generateBio(member, t)
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
-  // Full siblings (same recorded parent pair), in the same left-to-right order the tree
-  // itself renders them in — so "move up/down" here always matches what moves on the
-  // tree, and is only offered at all when there's more than one sibling to reorder.
+  // Full siblings (same recorded parent pair) and, separately, every other spouse of a
+  // spouse `member` shares with someone else (a remarried spouse's whole "stack") — both
+  // in the same order the tree itself renders them in, so "move up/down" here always
+  // matches what moves on the tree, and each is only offered when there's more than one
+  // to reorder.
   const ownSiblingKey = siblingKey(member)
   const fullSiblings = ownSiblingKey ? members.filter((m) => siblingKey(m) === ownSiblingKey).sort(compareBirthOrder) : []
-  const siblingIndex = fullSiblings.findIndex((m) => m.id === member.id)
+  const spouseGroup = coSpouses(member, members)
 
   async function handleDelete() {
     if (!confirm(t('member.trashConfirm', { name: member.fullName }))) return
     await trashMember(giaPha.id, member.id, currentUid)
     onDeleted()
-  }
-
-  // Swaps `member` with the sibling immediately before/after it, then writes an explicit
-  // `siblingOrder` (0, 1, 2, ...) onto *every* sibling in the group at once — not just the
-  // two that moved. Once any sibling has a manual order, `compareBirthOrder` prefers it
-  // over `birthDate` for the whole group, so leaving the others unset would let a random
-  // birth date reshuffle them right back around the two that were just deliberately
-  // placed.
-  async function moveSibling(direction: -1 | 1) {
-    const targetIndex = siblingIndex + direction
-    if (targetIndex < 0 || targetIndex >= fullSiblings.length) return
-    const reordered = [...fullSiblings]
-    ;[reordered[siblingIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[siblingIndex]]
-    await Promise.all(reordered.map((sibling, i) => updateMember(giaPha.id, sibling.id, { siblingOrder: i }, currentUid)))
   }
 
   return (
@@ -140,27 +161,10 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
         <button type="button" onClick={handleDelete}>{t('member.moveToTrash')}</button>
       </div>
       {fullSiblings.length > 1 && (
-        <div className="sibling-order-actions">
-          <span>{t('member.siblingOrder')}</span>
-          <button
-            type="button"
-            onClick={() => moveSibling(-1)}
-            disabled={siblingIndex <= 0}
-            aria-label={t('member.moveSiblingUp')}
-            title={t('member.moveSiblingUp')}
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            onClick={() => moveSibling(1)}
-            disabled={siblingIndex >= fullSiblings.length - 1}
-            aria-label={t('member.moveSiblingDown')}
-            title={t('member.moveSiblingDown')}
-          >
-            ↓
-          </button>
-        </div>
+        <ReorderControl giaPhaId={giaPha.id} currentUid={currentUid} label={t('member.siblingOrder')} group={fullSiblings} member={member} />
+      )}
+      {spouseGroup.length > 1 && (
+        <ReorderControl giaPhaId={giaPha.id} currentUid={currentUid} label={t('member.spouseOrder')} group={spouseGroup} member={member} />
       )}
       <StoriesList
         giaPhaId={giaPha.id}
