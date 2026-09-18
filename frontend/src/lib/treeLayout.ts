@@ -37,12 +37,12 @@ export interface TreeNodeData extends Record<string, unknown> {
   spouseId?: string
   /** Union-node only: the other half of the couple. */
   anchorId?: string
-  /** Member-node only: overrides the avatar's usual name-hash color with this child's own
-   * mother's union color, when that mother is one of a remarried anchor's several spouses
-   * — the same color as her dot and her children's edge legs, so it's readable straight
-   * off a child's own box which mother they belong to without having to trace a line back
-   * up. `undefined` for anyone who isn't such a child, leaving their avatar's usual color
-   * alone. */
+  /** Member-node only: overrides the avatar's usual name-hash color with a remarried
+   * anchor's own union color, for that one spouse herself and every one of her children —
+   * the same color as her dot, her stem into the shared bar, and her children's own edge
+   * legs — so it's readable straight off a box, with no line-tracing needed, both which
+   * wife it is and which of her children belong to her. `undefined` for anyone outside
+   * such a stack, leaving their avatar's usual color alone. */
   avatarColor?: string
 }
 
@@ -907,16 +907,18 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     colorsUsedByGeneration.set(span.generation, sameGenColors)
   }
 
-  // A child of one of a remarried anchor's several wives gets that wife's own union color
-  // painted onto their avatar too — the same color already on her dot and on their own
-  // edge leg — so which mother a child belongs to reads straight off their box, with no
-  // need to trace a line back up into the stack.
-  const avatarColorByChildId = new Map<string, string>()
+  // One of a remarried anchor's several wives, and every one of her own children, get
+  // that wife's own union color painted onto their avatars too — the same color already
+  // on her dot, her stem into the shared bar, and her children's own edge legs — so which
+  // wife (and which of her children) a box belongs to reads straight off the avatar, with
+  // no need to trace a line back up into the stack.
+  const avatarColorByMemberId = new Map<string, string>()
   for (const unit of unitsByKey.values()) {
     if (!unit.spouse || (spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
     const color = unionColors.get(unit.key)
     if (!color) continue
-    for (const child of unit.children) avatarColorByChildId.set(child.id, color)
+    avatarColorByMemberId.set(unit.spouse.id, color)
+    for (const child of unit.children) avatarColorByMemberId.set(child.id, color)
   }
 
   const genOffset = generationOffset(members)
@@ -924,7 +926,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     id: m.id,
     type: 'memberNode',
     position: positions.get(m.id) ?? { x: 0, y: 0 },
-    data: { member: m, displayGeneration: m.generation + genOffset, avatarColor: avatarColorByChildId.get(m.id) },
+    data: { member: m, displayGeneration: m.generation + genOffset, avatarColor: avatarColorByMemberId.get(m.id) },
   }))
 
   dividerPositions.forEach((pos, i) => {
