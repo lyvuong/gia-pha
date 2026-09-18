@@ -16,9 +16,13 @@ interface AvatarProps {
   name: string
   photoUrl?: string | null
   size?: number
+  /** Overrides the usual name-hash background — e.g. a child of a remarried anchor's
+   * several wives is colored to match their own mother's union color instead (see
+   * `TreeNodeData.avatarColor`). */
+  colorOverride?: string
 }
 
-export function Avatar({ name, photoUrl, size = 48 }: AvatarProps) {
+export function Avatar({ name, photoUrl, size = 48, colorOverride }: AvatarProps) {
   const style = { width: size, height: size, fontSize: size * 0.4 }
 
   if (photoUrl) {
@@ -26,7 +30,7 @@ export function Avatar({ name, photoUrl, size = 48 }: AvatarProps) {
   }
 
   return (
-    <div className="avatar avatar-initials" style={{ ...style, background: colorForName(name) }}>
+    <div className="avatar avatar-initials" style={{ ...style, background: colorOverride ?? colorForName(name) }}>
       {initialsForName(name)}
     </div>
   )
