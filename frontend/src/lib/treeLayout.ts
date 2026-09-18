@@ -729,7 +729,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // the very same overlap test to keep two overlapping trunks from *also* landing on the
   // same color — see there for why that matters.
   const trunkRowByUnionKey = new Map<string, number>()
-  const unionSpansByGeneration = new Map<number, { unionKey: string; connX: number; lo: number; hi: number }[]>()
+  const unionSpansByGeneration = new Map<number, { unionKey: string; anchorId: string; connX: number; lo: number; hi: number }[]>()
   {
     for (const unit of unitsByKey.values()) {
       if (!unit.spouse || unit.children.length === 0) continue
@@ -747,7 +747,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       const lo = Math.min(connX, ...childXs)
       const hi = Math.max(connX, ...childXs)
       const list = unionSpansByGeneration.get(unit.anchor.generation) ?? []
-      list.push({ unionKey: unit.key, connX, lo, hi })
+      list.push({ unionKey: unit.key, anchorId: unit.anchor.id, connX, lo, hi })
       unionSpansByGeneration.set(unit.anchor.generation, list)
     }
     for (const unions of unionSpansByGeneration.values()) {
@@ -757,6 +757,12 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         for (let j = i + 1; j < unions.length; j++) {
           const a = unions[i]
           const b = unions[j]
+          // Two of the *same* remarried anchor's own wives never get pushed apart onto
+          // separate rows — their trunks are meant to merge into one shared bar (see the
+          // main edges loop, `mergedBarYByAnchorId`), which only works if they land on
+          // the very same row to begin with. Cross-anchor pairs (the case this whole
+          // mechanism exists for) are unaffected.
+          if (a.anchorId === b.anchorId) continue
           if (a.lo >= b.hi || b.lo >= a.hi) continue // spans don't overlap at all
           const aSweepsB = b.connX > a.lo && b.connX < a.hi
           const bSweepsA = a.connX > b.lo && a.connX < b.hi
@@ -789,6 +795,21 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         }
         row++
       }
+      // Skipping same-anchor pairs above only stops the topological sort from pushing
+      // two co-wives apart *directly* — one of them can still end up elevated on her
+      // own, by a constraint against some unrelated third union that only conflicts with
+      // her and not her sister. Since they're meant to share one merged bar, round every
+      // co-wife of a given anchor up to the *highest* row any one of them independently
+      // needed — always safe to over-elevate (see the constraint-building comment above:
+      // a more-elevated trunk never risks its own bar or its children's legs, only its
+      // own vertical leg above the bar), so this can only ever add clearance, never
+      // reintroduce a crossing.
+      const maxRowByAnchor = new Map<string, number>()
+      for (const u of unions) {
+        const row = trunkRowByUnionKey.get(u.unionKey)!
+        maxRowByAnchor.set(u.anchorId, Math.max(maxRowByAnchor.get(u.anchorId) ?? 0, row))
+      }
+      for (const u of unions) trunkRowByUnionKey.set(u.unionKey, maxRowByAnchor.get(u.anchorId)!)
     }
   }
 
@@ -907,6 +928,11 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
+  // A stacked wife's `unionAnchorPos` (her own dot's position), kept around after this
+  // loop so the grouped-by-anchor pass below can lay out the several wives' merged trunk
+  // without re-deriving each one's dot position from scratch.
+  const unionAnchorPosByKey = new Map<string, { x: number; y: number }>()
+
   for (const unit of unitsByKey.values()) {
     const anchorPos = positions.get(unit.anchor.id)
     if (!anchorPos || !unit.spouse) continue
@@ -1024,39 +1050,111 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         data: { color, spouseId: unit.spouse.id, anchorId: unit.anchor.id },
         selectable: false,
       })
-      // Route each union-to-child line the same box-avoiding way as every other
-      // connector — vertically leadered on both ends, since a union's and a child's own
-      // handles both face top/bottom — grouping siblings by their shared row (always one
-      // row per unit, since every child in a unit sits in the same generation band) so
-      // they share one bar (see `pickClearSharedBarY`) instead of each child computing
-      // its own separately.
-      const childBoxes = memberBoxesExcept(new Set(unit.children.map((c) => c.id)))
-      const childrenByRow = new Map<number, Member[]>()
-      for (const child of unit.children) {
-        const y = positions.get(child.id)!.y
-        childrenByRow.set(y, [...(childrenByRow.get(y) ?? []), child])
+      if (stacked) {
+        // A remarried anchor's several wives draw their children's trunk together, once
+        // all of them are known — see the grouped pass below — rather than each one
+        // separately here.
+        unionAnchorPosByKey.set(unit.key, unionAnchorPos)
+      } else {
+        // Route each union-to-child line the same box-avoiding way as every other
+        // connector — vertically leadered on both ends, since a union's and a child's own
+        // handles both face top/bottom — grouping siblings by their shared row (always
+        // one row per unit, since every child in a unit sits in the same generation band)
+        // so they share one bar (see `pickClearSharedBarY`) instead of each child
+        // computing its own separately.
+        const childBoxes = memberBoxesExcept(new Set(unit.children.map((c) => c.id)))
+        const childrenByRow = new Map<number, Member[]>()
+        for (const child of unit.children) {
+          const y = positions.get(child.id)!.y
+          childrenByRow.set(y, [...(childrenByRow.get(y) ?? []), child])
+        }
+        for (const rowChildren of childrenByRow.values()) {
+          const targets = rowChildren.map((c) => {
+            const p = positions.get(c.id)!
+            return { x: p.x + NODE_WIDTH / 2, y: p.y }
+          })
+          // An ordinary couple's bar keeps its own free search (there's no precomputed
+          // dot position to pin to before it runs), but still gets nudged up by its
+          // assigned trunk row on top of that, for the same reason a stacked wife's bar
+          // (below) is pinned rather than independently re-searched: `pickClearSharedBarY`
+          // has no notion of *other* trunks' bars, so its own free search routinely
+          // re-converges two different trunks' bars back to nearly the same y (every
+          // search prefers the midpoint of source and target, which barely differs
+          // between two couples sitting in the same two generations).
+          const trunkRow = trunkRowByUnionKey.get(unit.key) ?? 0
+          const barY = pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP
+          pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
+        }
       }
-      for (const rowChildren of childrenByRow.values()) {
-        const targets = rowChildren.map((c) => {
-          const p = positions.get(c.id)!
-          return { x: p.x + NODE_WIDTH / 2, y: p.y }
+    }
+  }
+
+  // A remarried anchor's several wives (or a remarried wife's several husbands) each keep
+  // their own colored dot and their own short drop into the shared bar below, but their
+  // children's trunk itself renders as *one* merged, neutral-colored bar rather than
+  // several separately-colored ones stacked a few pixels apart — the trunk-row pass above
+  // guarantees every co-wife of one anchor lands on the exact same row, so there's always
+  // a single shared `barY` to draw it at. Which mother a given child belongs to is read
+  // off that child's own leg color instead, matching her dot/stem color, rather than off
+  // which bar segment it happens to hang from.
+  const stackedWithChildrenByAnchor = new Map<string, FamilyUnit[]>()
+  for (const unit of unitsByKey.values()) {
+    if (!unit.spouse || unit.children.length === 0) continue
+    if ((spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
+    stackedWithChildrenByAnchor.set(unit.anchor.id, [...(stackedWithChildrenByAnchor.get(unit.anchor.id) ?? []), unit])
+  }
+  for (const wives of stackedWithChildrenByAnchor.values()) {
+    if (wives.length === 1) {
+      // Nothing to merge — a single remarried wife with children still gets exactly the
+      // plain single-color trunk any ordinary couple would.
+      const unit = wives[0]
+      const unionAnchorPos = unionAnchorPosByKey.get(unit.key)!
+      const barY = unionAnchorPos.y + MIN_LEADER
+      pushChildTrunkAndLegs(`union-${unit.key}`, unionAnchorPos.x, barY, unit.children, unionColors.get(unit.key), `union-${unit.key}`)
+      continue
+    }
+    // All of these wives share the very same row (see the trunk-row pass above), so any
+    // one of their dots' y plus the same fixed leader gives the one shared `barY`.
+    const barY = unionAnchorPosByKey.get(wives[0].key)!.y + MIN_LEADER
+    const allXs = wives.flatMap((w) => {
+      const pos = unionAnchorPosByKey.get(w.key)!
+      return [pos.x, ...w.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)]
+    })
+    // Only ever used to satisfy `elbowEdge`'s required `source`/`target` node ids — the
+    // *shared* bar's own path is fully determined by `spanLoX`/`spanHiX`/`viaY` (see
+    // `barOnly`), so which real nodes anchor it doesn't affect where it's actually drawn.
+    const anyChildId = wives.flatMap((w) => w.children)[0].id
+    edges.push({
+      id: `trunk-shared-${wives[0].anchor.id}`,
+      source: `union-${wives[0].key}`,
+      target: anyChildId,
+      type: 'elbowEdge',
+      data: { viaY: barY, spanLoX: Math.min(...allXs), spanHiX: Math.max(...allXs), barOnly: true },
+      style: { stroke: 'var(--color-gold-dark)' },
+    })
+    for (const wife of wives) {
+      const unionId = `union-${wife.key}`
+      const pos = unionAnchorPosByKey.get(wife.key)!
+      const color = unionColors.get(wife.key)
+      // Her own dot down to the shared bar — a zero-width `spanLoX`/`spanHiX` reduces the
+      // usual trunk shape to just this one vertical leg, with no bar segment of its own.
+      edges.push({
+        id: `trunk-stem-${wife.key}`,
+        source: unionId,
+        target: anyChildId,
+        type: 'elbowEdge',
+        data: { viaY: barY, spanLoX: pos.x, spanHiX: pos.x },
+        style: { stroke: color },
+      })
+      for (const child of wife.children) {
+        edges.push({
+          id: `child-${unionId}-${child.id}`,
+          source: unionId,
+          target: child.id,
+          type: 'elbowEdge',
+          data: { centerX: positions.get(child.id)!.x + NODE_WIDTH / 2, viaY: barY, legOnly: true },
+          style: { stroke: color },
         })
-        // A stacked wife's bar is pinned a fixed leader below her own dot (already placed
-        // on a row reserved for her, via `trunkRowByUnionKey`) rather than independently
-        // re-searched: `pickClearSharedBarY` has no notion of *other* trunks' bars, so its
-        // own free search routinely re-converged two different trunks' bars back to
-        // nearly the same y (every search prefers the midpoint of source and target,
-        // which barely differs between two couples sitting in the same two generations),
-        // undoing the separation the dots were just given and crossing another trunk's
-        // bar or channel right through the middle. An ordinary couple's bar keeps its own
-        // free search (there's no precomputed dot position to pin to before it runs), but
-        // still gets nudged up by its assigned trunk row on top of that, for the exact
-        // same reason.
-        const trunkRow = trunkRowByUnionKey.get(unit.key) ?? 0
-        const barY = stacked
-          ? unionAnchorPos.y + MIN_LEADER
-          : pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP
-        pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
       }
     }
   }

@@ -32,12 +32,22 @@ interface ElbowEdgeData extends Record<string, unknown> {
    * shared bar (already drawn by the trunk edge) to itself — deliberately skips the leg
    * from the source down to `viaY` that a full path would otherwise retrace. */
   legOnly?: boolean
+  /** Paired with `spanLoX`/`spanHiX`: draws only the horizontal bar itself, skipping the
+   * `sourceX`/`sourceY`-to-`viaY` leg that mode normally leads with — for a merged bar
+   * shared by *several* remarried spouses' own trunks (see `mergedBarYByAnchorId`), where
+   * each spouse already draws her own short drop into the bar as her own zero-width
+   * `spanLoX`/`spanHiX` edge; a plain (non-`barOnly`) edge for the bar itself would add a
+   * spurious extra leg down from whichever single node got picked as its `source`, which
+   * isn't where any real line is meant to start. */
+  barOnly?: boolean
 }
 
 export function ElbowEdge({ sourceX, sourceY, targetX, targetY, data, style }: EdgeProps) {
   const info = data as ElbowEdgeData | undefined
   if (info?.spanLoX !== undefined && info.spanHiX !== undefined && info.viaY !== undefined) {
-    const path = `M ${sourceX} ${sourceY} L ${sourceX} ${info.viaY} M ${info.spanLoX} ${info.viaY} L ${info.spanHiX} ${info.viaY}`
+    const path = info.barOnly
+      ? `M ${info.spanLoX} ${info.viaY} L ${info.spanHiX} ${info.viaY}`
+      : `M ${sourceX} ${sourceY} L ${sourceX} ${info.viaY} M ${info.spanLoX} ${info.viaY} L ${info.spanHiX} ${info.viaY}`
     return <path fill="none" style={style} d={path} />
   }
   const bendX = info?.centerX ?? (sourceX + targetX) / 2
