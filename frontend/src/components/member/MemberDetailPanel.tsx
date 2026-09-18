@@ -4,7 +4,8 @@ import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
-import { trashMember } from '../../hooks/useMembers'
+import { compareBirthOrder, siblingKey } from '../../lib/treeLayout'
+import { trashMember, updateMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
 import { AddRelativeFlow } from './AddRelativeFlow'
 import { MemberEditForm } from './MemberEditForm'
@@ -57,10 +58,31 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
   const bio = member.bioOverride || generateBio(member, t)
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
+  // Full siblings (same recorded parent pair), in the same left-to-right order the tree
+  // itself renders them in — so "move up/down" here always matches what moves on the
+  // tree, and is only offered at all when there's more than one sibling to reorder.
+  const ownSiblingKey = siblingKey(member)
+  const fullSiblings = ownSiblingKey ? members.filter((m) => siblingKey(m) === ownSiblingKey).sort(compareBirthOrder) : []
+  const siblingIndex = fullSiblings.findIndex((m) => m.id === member.id)
+
   async function handleDelete() {
     if (!confirm(t('member.trashConfirm', { name: member.fullName }))) return
     await trashMember(giaPha.id, member.id, currentUid)
     onDeleted()
+  }
+
+  // Swaps `member` with the sibling immediately before/after it, then writes an explicit
+  // `siblingOrder` (0, 1, 2, ...) onto *every* sibling in the group at once — not just the
+  // two that moved. Once any sibling has a manual order, `compareBirthOrder` prefers it
+  // over `birthDate` for the whole group, so leaving the others unset would let a random
+  // birth date reshuffle them right back around the two that were just deliberately
+  // placed.
+  async function moveSibling(direction: -1 | 1) {
+    const targetIndex = siblingIndex + direction
+    if (targetIndex < 0 || targetIndex >= fullSiblings.length) return
+    const reordered = [...fullSiblings]
+    ;[reordered[siblingIndex], reordered[targetIndex]] = [reordered[targetIndex], reordered[siblingIndex]]
+    await Promise.all(reordered.map((sibling, i) => updateMember(giaPha.id, sibling.id, { siblingOrder: i }, currentUid)))
   }
 
   return (
@@ -117,6 +139,29 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
         <button type="button" onClick={() => setAddingRelative(true)}>{t('member.addRelativeShort')}</button>
         <button type="button" onClick={handleDelete}>{t('member.moveToTrash')}</button>
       </div>
+      {fullSiblings.length > 1 && (
+        <div className="sibling-order-actions">
+          <span>{t('member.siblingOrder')}</span>
+          <button
+            type="button"
+            onClick={() => moveSibling(-1)}
+            disabled={siblingIndex <= 0}
+            aria-label={t('member.moveSiblingUp')}
+            title={t('member.moveSiblingUp')}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() => moveSibling(1)}
+            disabled={siblingIndex >= fullSiblings.length - 1}
+            aria-label={t('member.moveSiblingDown')}
+            title={t('member.moveSiblingDown')}
+          >
+            ↓
+          </button>
+        </div>
+      )}
       <StoriesList
         giaPhaId={giaPha.id}
         member={member}

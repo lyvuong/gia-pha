@@ -70,7 +70,10 @@
     "deleteForeverConfirm": "Permanently delete {{name}}? This cannot be undone.",
     "addRelative": "Add a relative of {{name}}",
     "addRelativeShort": "Add relative",
-    "chooseRelationship": "Relationship"
+    "chooseRelationship": "Relationship",
+    "siblingOrder": "Order among siblings",
+    "moveSiblingUp": "Move earlier",
+    "moveSiblingDown": "Move later"
   },
   "relationship": {
     "father": "Father",

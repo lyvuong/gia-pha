@@ -70,7 +70,10 @@
     "deleteForeverConfirm": "Xóa vĩnh viễn {{name}}? Không thể hoàn tác.",
     "addRelative": "Thêm người thân của {{name}}",
     "addRelativeShort": "Thêm người thân",
-    "chooseRelationship": "Mối quan hệ"
+    "chooseRelationship": "Mối quan hệ",
+    "siblingOrder": "Thứ tự giữa anh chị em",
+    "moveSiblingUp": "Chuyển lên trước",
+    "moveSiblingDown": "Chuyển xuống sau"
   },
   "relationship": {
     "father": "Cha",

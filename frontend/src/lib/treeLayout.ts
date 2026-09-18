@@ -238,7 +238,26 @@ function midpointOnRoute(route: Route, sourceY: number, targetY: number): Point 
   return { x: route.centerX, y: route.viaY }
 }
 
-function compareBirthOrder(a: Member, b: Member): number {
+/** Key shared by full siblings (same parent pair, order-independent), or '' for members
+ * with no recorded parents. Exported so the UI can find a member's own full siblings to
+ * offer manual reordering (see `compareBirthOrder`) without duplicating this rule. */
+export function siblingKey(m: Member): string {
+  return [...m.parentIds].sort().join('|')
+}
+
+/** Orders two (usually full-sibling) members oldest-to-left. `siblingOrder` is a manual
+ * override for exactly the case `birthDate` can't handle: when neither sibling's actual
+ * birth date is known, there's nothing to sort by, so the layout falls back to whatever
+ * order the members happen to come back from storage in — which is arbitrary and can
+ * land a married-in in-law's spouse in the *middle* of their own siblings instead of at
+ * an edge (see the trunk-crossing case this was added for). Whenever *either* side has a
+ * `siblingOrder` set, it wins outright over `birthDate` — once a person's been manually
+ * placed, an unrelated birth date shouldn't silently override that — and a sibling with
+ * no `siblingOrder` of their own defaults to `0` so setting it on just the *one* member
+ * being repositioned (e.g. moving them to the end) is enough on its own; it doesn't
+ * require every sibling to have one for the comparison to make sense. */
+export function compareBirthOrder(a: Member, b: Member): number {
+  if (a.siblingOrder != null || b.siblingOrder != null) return (a.siblingOrder ?? 0) - (b.siblingOrder ?? 0)
   if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
   return 0
 }
@@ -342,12 +361,6 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     const soloKey = `solo-${anchor.id}`
     if (!unitsByKey.has(soloKey)) unitsByKey.set(soloKey, { key: soloKey, anchor, spouse: null, children: [] })
     unitsByKey.get(soloKey)!.children.push(...children.filter((c) => !unitsByKey.get(soloKey)!.children.includes(c)))
-  }
-
-  /** Key shared by full siblings (same parent pair, order-independent), or '' for
-   * members with no recorded parents in this tree. */
-  function siblingKey(m: Member): string {
-    return [...m.parentIds].sort().join('|')
   }
 
   /** Where `m`'s own recorded parent(s) already ended up (their channel x, for a stacked
@@ -662,6 +675,100 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
+  // Which "trunk row" (0 = closest to the children's own row, 1 = one step further up,
+  // ...) each union-to-children trunk renders on, keyed by `unit.key` — assigned so two
+  // *different* couples' trunks in the same generation never cross, and never share a row
+  // when their bars would otherwise run flush together as one ambiguous line. This isn't
+  // only a stacked-wife concern: two entirely unrelated ordinary couples elsewhere in the
+  // same row can just as easily have their trunks' free-searched bar heights coincide
+  // (`pickClearSharedBarY` has no notion of any *other* union's bar), especially since
+  // both searches tend to prefer the same "midpoint of source and target" — see the
+  // reported case of two unrelated couples' bars landing on the exact same y with
+  // overlapping x reach.
+  //
+  // A trunk spans horizontally from its own connection x (a stacked wife's channel x, or
+  // an ordinary couple's own union-dot x) out to its furthest child. Whenever two trunks'
+  // spans overlap at all, they need separate rows just to stay visually distinct — but
+  // *which* of the two gets the more elevated row is a real constraint, not a free choice:
+  // a less-elevated trunk's bar sits *below* a more-elevated trunk's own connection point,
+  // so it only ever risks crossing that trunk's own vertical leg above the bar (a stacked
+  // wife's multi-row channel, or an ordinary couple's short dot-to-bar drop) — never its
+  // bar or its legs into its own children, both of which sit lower still. So the one and
+  // only hazard to avoid is a trunk's bar sweeping across another trunk's connection x
+  // while sitting *below* that trunk's own row — which happens exactly when the
+  // less-elevated trunk's span contains the more-elevated trunk's connection x. Elevating
+  // whichever trunk's connection x the other's span would otherwise sweep across (not just
+  // whichever span is wider — a wider span can still be crossing-free if it happens to
+  // miss the other's connection x specifically) is what actually avoids it.
+  //
+  // `unionSpansByGeneration` (each trunk's own connection x plus its [lo, hi] horizontal
+  // reach) is computed here, ahead of the color assignment below, so that step can reuse
+  // the very same overlap test to keep two overlapping trunks from *also* landing on the
+  // same color — see there for why that matters.
+  const trunkRowByUnionKey = new Map<string, number>()
+  const unionSpansByGeneration = new Map<number, { unionKey: string; connX: number; lo: number; hi: number }[]>()
+  {
+    for (const unit of unitsByKey.values()) {
+      if (!unit.spouse || unit.children.length === 0) continue
+      const anchorPos = positions.get(unit.anchor.id)
+      const spousePos = positions.get(unit.spouse.id)
+      if (!anchorPos || !spousePos) continue
+      const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
+      // An ordinary couple has no precomputed dot x the way a stacked wife's channel x
+      // is precomputed — the marriage line's own routing settles that later, in the main
+      // edges loop below. The couple's own midpoint is a close enough stand-in: this is
+      // only used to rank trunks against each other, not to place anything on the page.
+      const connX = stacked ? channelXByWifeId.get(unit.spouse.id) : (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2
+      if (connX === undefined) continue
+      const childXs = unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
+      const lo = Math.min(connX, ...childXs)
+      const hi = Math.max(connX, ...childXs)
+      const list = unionSpansByGeneration.get(unit.anchor.generation) ?? []
+      list.push({ unionKey: unit.key, connX, lo, hi })
+      unionSpansByGeneration.set(unit.anchor.generation, list)
+    }
+    for (const unions of unionSpansByGeneration.values()) {
+      // [lower, higher]: `lower` must end up on a strictly smaller row than `higher`.
+      const constraints: [string, string][] = []
+      for (let i = 0; i < unions.length; i++) {
+        for (let j = i + 1; j < unions.length; j++) {
+          const a = unions[i]
+          const b = unions[j]
+          if (a.lo >= b.hi || b.lo >= a.hi) continue // spans don't overlap at all
+          const aSweepsB = b.connX > a.lo && b.connX < a.hi
+          const bSweepsA = a.connX > b.lo && a.connX < b.hi
+          if (aSweepsB && !bSweepsA) constraints.push([a.unionKey, b.unionKey])
+          else if (bSweepsA && !aSweepsB) constraints.push([b.unionKey, a.unionKey])
+          else {
+            // Either direction is equally crossing-free (or equally not) — fall back to
+            // elevating whoever reaches further, for a stable, deterministic result.
+            const [narrower, wider] = a.hi - a.lo <= b.hi - b.lo ? [a, b] : [b, a]
+            constraints.push([narrower.unionKey, wider.unionKey])
+          }
+        }
+      }
+      // Layer trunks into rows via topological sort on `constraints`: a trunk is safe to
+      // place on the current (lowest still-open) row once every trunk that must be
+      // *below* it has already been placed on an earlier one. A genuine cycle (each of
+      // two trunks' spans sweeps across the other's connection x — no elevation choice
+      // avoids it) can't be resolved by row order at all; the fallback just places
+      // whatever's left so this always terminates instead of looping forever.
+      const remaining = new Set(unions.map((u) => u.unionKey))
+      let row = 0
+      while (remaining.size > 0) {
+        const ready = [...remaining].filter(
+          (id) => !constraints.some(([lower, higher]) => higher === id && remaining.has(lower)),
+        )
+        const batch = ready.length > 0 ? ready : [...remaining]
+        for (const id of batch) {
+          trunkRowByUnionKey.set(id, row)
+          remaining.delete(id)
+        }
+        row++
+      }
+    }
+  }
+
   // A remarried anchor's own wives are colored from their own dedicated, zero-based run
   // through the palette (colorIndexByAnchor), instead of sharing the single tree-wide
   // cycle every other couple draws from — so which colors two *sibling* wives land on
@@ -670,19 +777,54 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // exactly the pair whose colors most need to read as different at a glance; leaving
   // that to the global cycle risked them landing on two colors that are close in hue
   // (`UNION_COLORS` has two blues and three orange/browns) purely by coincidence.
+  //
+  // An ordinary couple's trunk, on the other hand, can end up overlapping another
+  // ordinary couple's trunk it has nothing to do with — e.g. two full-sibling groups
+  // pulled into the same row block because one child from each side married the other
+  // (see `blockOf`) — and `trunkRowByUnionKey` only staggers such trunks a few pixels
+  // apart, not onto clearly separate rows. If the plain global cycle then also happens to
+  // land both on the same color (purely by coincidence of how many other couples fall
+  // between them), the two read as one thick, tangled line instead of two crossing-free
+  // ones. So an ordinary couple's color skips whatever colors are already taken by any
+  // *other* ordinary couple in the same generation whose span it overlaps, falling back
+  // to the plain cycle once every color is already spoken for.
   let colorIndex = 0
   const colorIndexByAnchor = new Map<string, number>()
   const unionColors = new Map<string, string>()
+  const spanByUnionKey = new Map<string, { generation: number; lo: number; hi: number }>()
+  for (const [generation, unions] of unionSpansByGeneration) {
+    for (const u of unions) spanByUnionKey.set(u.unionKey, { generation, lo: u.lo, hi: u.hi })
+  }
+  const colorsUsedByGeneration = new Map<number, Map<string, string>>()
   for (const unit of unitsByKey.values()) {
     if (!unit.spouse) continue
     if ((spouseCountOf.get(unit.anchor.id) ?? 0) >= 2) {
       const local = colorIndexByAnchor.get(unit.anchor.id) ?? 0
       unionColors.set(unit.key, UNION_COLORS[local % UNION_COLORS.length])
       colorIndexByAnchor.set(unit.anchor.id, local + 1)
-    } else {
+      continue
+    }
+    const span = spanByUnionKey.get(unit.key)
+    if (!span) {
       unionColors.set(unit.key, UNION_COLORS[colorIndex % UNION_COLORS.length])
       colorIndex++
+      continue
     }
+    const sameGenColors = colorsUsedByGeneration.get(span.generation) ?? new Map<string, string>()
+    const excluded = new Set<string>()
+    for (const [otherKey, color] of sameGenColors) {
+      const other = spanByUnionKey.get(otherKey)
+      if (other && other.lo < span.hi && span.lo < other.hi) excluded.add(color)
+    }
+    let color = UNION_COLORS[colorIndex % UNION_COLORS.length]
+    for (let tries = 0; excluded.has(color) && tries < UNION_COLORS.length; tries++) {
+      colorIndex++
+      color = UNION_COLORS[colorIndex % UNION_COLORS.length]
+    }
+    colorIndex++
+    unionColors.set(unit.key, color)
+    sameGenColors.set(unit.key, color)
+    colorsUsedByGeneration.set(span.generation, sameGenColors)
   }
 
   const genOffset = generationOffset(members)
@@ -739,95 +881,6 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         data: { centerX: positions.get(child.id)!.x + NODE_WIDTH / 2, viaY: barY, legOnly: true },
         style,
       })
-    }
-  }
-
-  // Which "trunk row" (0 = closest to the children's own row, 1 = one step further up,
-  // ...) each union-to-children trunk renders on, keyed by `unit.key` — assigned so two
-  // *different* couples' trunks in the same generation never cross, and never share a row
-  // when their bars would otherwise run flush together as one ambiguous line. This isn't
-  // only a stacked-wife concern: two entirely unrelated ordinary couples elsewhere in the
-  // same row can just as easily have their trunks' free-searched bar heights coincide
-  // (`pickClearSharedBarY` has no notion of any *other* union's bar), especially since
-  // both searches tend to prefer the same "midpoint of source and target" — see the
-  // reported case of two unrelated couples' bars landing on the exact same y with
-  // overlapping x reach.
-  //
-  // A trunk spans horizontally from its own connection x (a stacked wife's channel x, or
-  // an ordinary couple's own union-dot x) out to its furthest child. Whenever two trunks'
-  // spans overlap at all, they need separate rows just to stay visually distinct — but
-  // *which* of the two gets the more elevated row is a real constraint, not a free choice:
-  // a less-elevated trunk's bar sits *below* a more-elevated trunk's own connection point,
-  // so it only ever risks crossing that trunk's own vertical leg above the bar (a stacked
-  // wife's multi-row channel, or an ordinary couple's short dot-to-bar drop) — never its
-  // bar or its legs into its own children, both of which sit lower still. So the one and
-  // only hazard to avoid is a trunk's bar sweeping across another trunk's connection x
-  // while sitting *below* that trunk's own row — which happens exactly when the
-  // less-elevated trunk's span contains the more-elevated trunk's connection x. Elevating
-  // whichever trunk's connection x the other's span would otherwise sweep across (not just
-  // whichever span is wider — a wider span can still be crossing-free if it happens to
-  // miss the other's connection x specifically) is what actually avoids it.
-  const trunkRowByUnionKey = new Map<string, number>()
-  {
-    const unionsByGeneration = new Map<number, { unionKey: string; connX: number; lo: number; hi: number }[]>()
-    for (const unit of unitsByKey.values()) {
-      if (!unit.spouse || unit.children.length === 0) continue
-      const anchorPos = positions.get(unit.anchor.id)
-      const spousePos = positions.get(unit.spouse.id)
-      if (!anchorPos || !spousePos) continue
-      const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
-      // An ordinary couple has no precomputed dot x the way a stacked wife's channel x
-      // is precomputed — the marriage line's own routing settles that later, in the main
-      // edges loop below. The couple's own midpoint is a close enough stand-in: this is
-      // only used to rank trunks against each other, not to place anything on the page.
-      const connX = stacked ? channelXByWifeId.get(unit.spouse.id) : (anchorPos.x + spousePos.x) / 2 + NODE_WIDTH / 2
-      if (connX === undefined) continue
-      const childXs = unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
-      const lo = Math.min(connX, ...childXs)
-      const hi = Math.max(connX, ...childXs)
-      const list = unionsByGeneration.get(unit.anchor.generation) ?? []
-      list.push({ unionKey: unit.key, connX, lo, hi })
-      unionsByGeneration.set(unit.anchor.generation, list)
-    }
-    for (const unions of unionsByGeneration.values()) {
-      // [lower, higher]: `lower` must end up on a strictly smaller row than `higher`.
-      const constraints: [string, string][] = []
-      for (let i = 0; i < unions.length; i++) {
-        for (let j = i + 1; j < unions.length; j++) {
-          const a = unions[i]
-          const b = unions[j]
-          if (a.lo >= b.hi || b.lo >= a.hi) continue // spans don't overlap at all
-          const aSweepsB = b.connX > a.lo && b.connX < a.hi
-          const bSweepsA = a.connX > b.lo && a.connX < b.hi
-          if (aSweepsB && !bSweepsA) constraints.push([a.unionKey, b.unionKey])
-          else if (bSweepsA && !aSweepsB) constraints.push([b.unionKey, a.unionKey])
-          else {
-            // Either direction is equally crossing-free (or equally not) — fall back to
-            // elevating whoever reaches further, for a stable, deterministic result.
-            const [narrower, wider] = a.hi - a.lo <= b.hi - b.lo ? [a, b] : [b, a]
-            constraints.push([narrower.unionKey, wider.unionKey])
-          }
-        }
-      }
-      // Layer trunks into rows via topological sort on `constraints`: a trunk is safe to
-      // place on the current (lowest still-open) row once every trunk that must be
-      // *below* it has already been placed on an earlier one. A genuine cycle (each of
-      // two trunks' spans sweeps across the other's connection x — no elevation choice
-      // avoids it) can't be resolved by row order at all; the fallback just places
-      // whatever's left so this always terminates instead of looping forever.
-      const remaining = new Set(unions.map((u) => u.unionKey))
-      let row = 0
-      while (remaining.size > 0) {
-        const ready = [...remaining].filter(
-          (id) => !constraints.some(([lower, higher]) => higher === id && remaining.has(lower)),
-        )
-        const batch = ready.length > 0 ? ready : [...remaining]
-        for (const id of batch) {
-          trunkRowByUnionKey.set(id, row)
-          remaining.delete(id)
-        }
-        row++
-      }
     }
   }
 

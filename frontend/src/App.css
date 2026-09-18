@@ -341,6 +341,20 @@
   margin: 12px 0;
 }
 
+.sibling-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.sibling-order-actions button {
+  padding: 2px 10px;
+  line-height: 1.4;
+}
+
 .trash-panel h2 {
   margin: 0 0 16px;
   font-size: 18px;

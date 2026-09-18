@@ -57,6 +57,7 @@ function fromDoc(id: string, data: Record<string, unknown>): Member {
     queQuan: (data.queQuan as string) ?? '',
     parentIds: (data.parentIds as string[]) ?? [],
     spouseIds: (data.spouseIds as string[]) ?? [],
+    siblingOrder: (data.siblingOrder as number | null) ?? null,
     notes: (data.notes as string) ?? '',
     education: (data.education as Member['education']) ?? [],
     occupation: (data.occupation as string | null) ?? null,

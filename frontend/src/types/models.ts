@@ -56,6 +56,10 @@ export interface Member {
   queQuan: string
   parentIds: string[]
   spouseIds: string[]
+  /** Manual override for this member's left-to-right position among their own full
+   * siblings, used by the tree layout when there's no `birthDate` to sort by. `null`
+   * until someone uses the "move up/down among siblings" control. */
+  siblingOrder: number | null
   notes: string
   education: Education[]
   occupation: string | null
