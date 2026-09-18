@@ -296,7 +296,7 @@ export function coSpouses(member: Member, members: Member[]): Member[] {
  * plain full siblings (`siblingKey`), or, when one of `m`'s parents is one of several
  * spouses of a remarried anchor, every child of *any* of that anchor's spouses — since
  * `computeTreeLayout` now merges all of their trunks into one shared bar (see
- * `stackedWithChildrenByAnchor`), manually reordering them one at a time only within their own
+ * `stackedUnitsByAnchor`), manually reordering them one at a time only within their own
  * mother's set would no longer match what's actually one combined row on the page.
  * Exported so the UI can offer the same combined group for manual reordering that
  * `blockOf` uses to lay them out. Picks whichever parent is remarried when both happen to
@@ -446,7 +446,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
    * ordering happens to fall between two of the parent's mothers. Groups sharing that
    * same remarried parent (see `siblingGroupKey`) are pooled and sorted *together* by
    * `compareBirthOrder`, rather than each mother's own set sorted separately — since
-   * their children's trunk itself renders as one merged bar (see `stackedWithChildrenByAnchor`),
+   * their children's trunk itself renders as one merged bar (see `stackedUnitsByAnchor`),
    * their left-to-right order needs to be one combined sequence too, freely reorderable
    * across mothers, not several independent per-mother ones. Groups that *don't* share a
    * remarried parent are still ordered relative to each other by their own parents'
@@ -795,7 +795,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           const b = unions[j]
           // Two of the *same* remarried anchor's own wives never get pushed apart onto
           // separate rows — their trunks are meant to merge into one shared bar (see the
-          // main edges loop, `stackedWithChildrenByAnchor`), which only works if they land on
+          // main edges loop, `stackedUnitsByAnchor`), which only works if they land on
           // the very same row to begin with. Cross-anchor pairs (the case this whole
           // mechanism exists for) are unaffected.
           if (a.anchorId === b.anchorId) continue
@@ -846,6 +846,22 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         maxRowByAnchor.set(u.anchorId, Math.max(maxRowByAnchor.get(u.anchorId) ?? 0, row))
       }
       for (const u of unions) trunkRowByUnionKey.set(u.unionKey, maxRowByAnchor.get(u.anchorId)!)
+      // A childless spouse in the same stack has no `unions` entry of her own (only
+      // spouses with children are collected into `unions` above), so nothing so far has
+      // assigned her a row at all. Give her the same row as her child-bearing stack-mates
+      // anyway — her own dot still needs to land on the very same shared bar as theirs
+      // (see the grouped pass below, which now draws her a dot and a stem into that bar
+      // too, even though she has no children of her own to hang off it). An anchor with no
+      // children in *any* union never reaches this line (`unions` — and so `maxRowByAnchor`
+      // — is empty for it), so this only ever fires for a stack that has a real trunk to
+      // join in the first place.
+      for (const anchorId of maxRowByAnchor.keys()) {
+        for (const unit of unitsByKey.values()) {
+          if (unit.anchor.id === anchorId && unit.spouse && !trunkRowByUnionKey.has(unit.key)) {
+            trunkRowByUnionKey.set(unit.key, maxRowByAnchor.get(anchorId)!)
+          }
+        }
+      }
     }
   }
 
@@ -989,6 +1005,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     const spousePos = positions.get(unit.spouse.id)!
     const color = unionColors.get(unit.key)
     const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
+    // Whether this stacked unit belongs to an anchor whose stack has a real trunk to join
+    // — i.e. at least one of the anchor's spouses (maybe not this one) has children (see
+    // the childless-sibling row assignment above `trunkRowByUnionKey` now carries out).
+    // Used below so a childless spouse still gets her own dot and stem into that shared
+    // trunk, the same as her child-bearing stack-mates — but only when there's a trunk at
+    // all to connect to; an anchor with no children anywhere in the stack never has any of
+    // their keys in `trunkRowByUnionKey`, so this stays `false` for them, same as before.
+    const stackHasChildren = stacked && trunkRowByUnionKey.has(unit.key)
     const unionId = `union-${unit.key}`
     let unionAnchorPos: { x: number; y: number }
     // Whether a `spouse-to-union` connector edge is needed: an ordinary adjacent couple
@@ -1041,7 +1065,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         data: { centerX: spineX },
         style: { stroke: 'var(--color-gold-dark)' },
       })
-      if (unit.children.length > 0) {
+      if (unit.children.length > 0 || stackHasChildren) {
         // This wife's own children exit her *right* edge (never straight down, which
         // would run through whichever other wife is stacked below her) into her own
         // channel (computed above, alongside her position), then turn down into the
@@ -1066,16 +1090,18 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         needsUnionEdge = true
         unionEdgeCenterX = channelX
       } else {
-        // No children, so no union dot will be rendered at all (see below) — this value
-        // is never used, just here to satisfy definite assignment.
+        // Neither this wife nor any of her stack-mates has children — nothing for a
+        // union dot to connect to anywhere in the stack, so none will be rendered (see
+        // below); this value is never used, just here to satisfy definite assignment.
         unionAnchorPos = spousePos
       }
     }
 
-    // A couple with no children has nothing for a union dot to connect to — the marriage
-    // line above already shows they're a couple, so skip the dot (and any line to it)
-    // entirely rather than leaving a connector that dangles or floats with no purpose.
-    if (unit.children.length > 0) {
+    // A couple with no children — and, for a stacked wife, no child-bearing stack-mate
+    // either — has nothing for a union dot to connect to: the marriage line above already
+    // shows they're a couple, so skip the dot (and any line to it) entirely rather than
+    // leaving a connector that dangles or floats with no purpose.
+    if (unit.children.length > 0 || stackHasChildren) {
       if (needsUnionEdge) {
         // The channel is by construction to the wife's right, so this is always 'right' —
         // computed via `exitSide` anyway to stay honest with however the channel math
@@ -1147,16 +1173,26 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // a single shared `barY` to draw it at. Which mother a given child belongs to is read
   // off that child's own leg color instead, matching her dot/stem color, rather than off
   // which bar segment it happens to hang from.
-  const stackedWithChildrenByAnchor = new Map<string, FamilyUnit[]>()
+  //
+  // Grouped by every stacked unit that actually got a dot — including a childless wife,
+  // as long as *some* stack-mate has children for that dot to join (see `stackHasChildren`
+  // above): she still gets her own colored dot and her own stem down into the shared bar,
+  // she just contributes no children legs of her own once there. `unionAnchorPosByKey` is
+  // exactly the set of units that passed that test in the main loop above, so checking
+  // membership there is enough — no need to re-derive the condition here.
+  const stackedUnitsByAnchor = new Map<string, FamilyUnit[]>()
   for (const unit of unitsByKey.values()) {
-    if (!unit.spouse || unit.children.length === 0) continue
+    if (!unit.spouse || !unionAnchorPosByKey.has(unit.key)) continue
     if ((spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
-    stackedWithChildrenByAnchor.set(unit.anchor.id, [...(stackedWithChildrenByAnchor.get(unit.anchor.id) ?? []), unit])
+    stackedUnitsByAnchor.set(unit.anchor.id, [...(stackedUnitsByAnchor.get(unit.anchor.id) ?? []), unit])
   }
-  for (const wives of stackedWithChildrenByAnchor.values()) {
+  for (const wives of stackedUnitsByAnchor.values()) {
     if (wives.length === 1) {
       // Nothing to merge — a single remarried wife with children still gets exactly the
-      // plain single-color trunk any ordinary couple would.
+      // plain single-color trunk any ordinary couple would. (A childless wife can never
+      // reach this alone: `stackHasChildren` requires a child-bearing stack-mate, and that
+      // stack-mate would be included here too, so this branch only ever holds one unit
+      // when there's truly only one wife in the stack to begin with.)
       const unit = wives[0]
       const unionAnchorPos = unionAnchorPosByKey.get(unit.key)!
       const barY = unionAnchorPos.y + MIN_LEADER
