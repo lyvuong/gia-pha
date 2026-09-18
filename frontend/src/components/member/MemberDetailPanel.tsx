@@ -4,7 +4,7 @@ import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
-import { compareBirthOrder, coSpouses, siblingKey } from '../../lib/treeLayout'
+import { compareBirthOrder, coSpouses, siblingGroupKey } from '../../lib/treeLayout'
 import { trashMember, updateMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
 import { AddRelativeFlow } from './AddRelativeFlow'
@@ -91,13 +91,17 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
   const bio = member.bioOverride || generateBio(member, t)
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
-  // Full siblings (same recorded parent pair) and, separately, every other spouse of a
-  // spouse `member` shares with someone else (a remarried spouse's whole "stack") — both
-  // in the same order the tree itself renders them in, so "move up/down" here always
-  // matches what moves on the tree, and each is only offered when there's more than one
-  // to reorder.
-  const ownSiblingKey = siblingKey(member)
-  const fullSiblings = ownSiblingKey ? members.filter((m) => siblingKey(m) === ownSiblingKey).sort(compareBirthOrder) : []
+  // Full siblings, or, when one of `member`'s parents is one of a remarried anchor's
+  // several spouses, every child of *any* of that anchor's spouses (see
+  // `siblingGroupKey` — their trunk renders as one merged bar, so they're one combined
+  // reorderable group too) — and, separately, every other spouse of a spouse `member`
+  // shares with someone else (a remarried spouse's whole "stack"). Both in the same order
+  // the tree itself renders them in, so "move up/down" here always matches what moves on
+  // the tree, and each is only offered when there's more than one to reorder.
+  const ownSiblingGroupKey = siblingGroupKey(member, members)
+  const fullSiblings = ownSiblingGroupKey
+    ? members.filter((m) => siblingGroupKey(m, members) === ownSiblingGroupKey).sort(compareBirthOrder)
+    : []
   const spouseGroup = coSpouses(member, members)
 
   async function handleDelete() {

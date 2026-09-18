@@ -292,6 +292,27 @@ export function coSpouses(member: Member, members: Member[]): Member[] {
   return []
 }
 
+/** Key shared by everyone who renders as part of the *same* children's trunk: either
+ * plain full siblings (`siblingKey`), or, when one of `m`'s parents is one of several
+ * spouses of a remarried anchor, every child of *any* of that anchor's spouses — since
+ * `computeTreeLayout` now merges all of their trunks into one shared bar (see
+ * `stackedWithChildrenByAnchor`), manually reordering them one at a time only within their own
+ * mother's set would no longer match what's actually one combined row on the page.
+ * Exported so the UI can offer the same combined group for manual reordering that
+ * `blockOf` uses to lay them out. Picks whichever parent is remarried when both happen to
+ * be (rare, and `computeTreeLayout` doesn't stack on both sides at once either). */
+export function siblingGroupKey(m: Member, members: Member[]): string {
+  const remarriedParent = m.parentIds.find((parentId) => {
+    const partners = new Set<string>()
+    for (const other of members) {
+      if (other.id === parentId) for (const s of other.spouseIds) partners.add(s)
+      if (other.spouseIds.includes(parentId)) partners.add(other.id)
+    }
+    return partners.size >= 2
+  })
+  return remarriedParent ? `stacked-${remarriedParent}` : siblingKey(m)
+}
+
 /** One couple (or a single recorded parent) plus their children. */
 interface FamilyUnit {
   key: string
@@ -422,11 +443,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
    * A cluster can hold more than one full-sibling set at once — see `clusterInto`, which
    * also merges in half-siblings sharing a remarried parent, so that parent's children
    * stay one contiguous block in the row instead of scattering whenever another block's
-   * ordering happens to fall between two of the parent's mothers. Each full-sibling set
-   * is still sorted internally oldest-to-left as before, but the sets themselves are
-   * ordered by their own parents' position (`parentAnchorX`) rather than pooling every
-   * member into one birth-date sort — pooling would happily interleave two mothers'
-   * children by birth year, undoing exactly the contiguous grouping this exists for. */
+   * ordering happens to fall between two of the parent's mothers. Groups sharing that
+   * same remarried parent (see `siblingGroupKey`) are pooled and sorted *together* by
+   * `compareBirthOrder`, rather than each mother's own set sorted separately — since
+   * their children's trunk itself renders as one merged bar (see `stackedWithChildrenByAnchor`),
+   * their left-to-right order needs to be one combined sequence too, freely reorderable
+   * across mothers, not several independent per-mother ones. Groups that *don't* share a
+   * remarried parent are still ordered relative to each other by their own parents'
+   * position (`parentAnchorX`) rather than pooled — pooling those would happily
+   * interleave two unrelated families' children by birth year, undoing exactly the
+   * contiguous grouping this exists for. */
   function blockOf(clusterMembers: Member[]): BlockItem[] {
     const clusterIds = new Set(clusterMembers.map((m) => m.id))
     const withParents = clusterMembers.filter((m) => siblingKey(m) !== '')
@@ -451,11 +477,14 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
 
     if (withParents.length > 0) {
-      const siblingSets = new Map<string, Member[]>()
-      for (const m of withParents) siblingSets.set(siblingKey(m), [...(siblingSets.get(siblingKey(m)) ?? []), m])
-      const orderedSets = [...siblingSets.values()].sort((a, b) => parentAnchorX(a[0]) - parentAnchorX(b[0]))
-      for (const siblingSet of orderedSets) {
-        for (const sibling of [...siblingSet].sort(compareBirthOrder)) appendPerson(sibling)
+      const siblingGroups = new Map<string, Member[]>()
+      for (const m of withParents) {
+        const key = siblingGroupKey(m, members)
+        siblingGroups.set(key, [...(siblingGroups.get(key) ?? []), m])
+      }
+      const orderedGroups = [...siblingGroups.values()].sort((a, b) => parentAnchorX(a[0]) - parentAnchorX(b[0]))
+      for (const siblingGroup of orderedGroups) {
+        for (const sibling of [...siblingGroup].sort(compareBirthOrder)) appendPerson(sibling)
       }
     } else {
       const anchor = clusterMembers.reduce((best, m) =>
@@ -766,7 +795,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           const b = unions[j]
           // Two of the *same* remarried anchor's own wives never get pushed apart onto
           // separate rows — their trunks are meant to merge into one shared bar (see the
-          // main edges loop, `mergedBarYByAnchorId`), which only works if they land on
+          // main edges loop, `stackedWithChildrenByAnchor`), which only works if they land on
           // the very same row to begin with. Cross-anchor pairs (the case this whole
           // mechanism exists for) are unaffected.
           if (a.anchorId === b.anchorId) continue
