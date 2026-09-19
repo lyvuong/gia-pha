@@ -41,7 +41,7 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
       </div>
       <Handle type="target" id="right" position={Position.Right} />
       <Handle type="source" id="right" position={Position.Right} />
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" id="bottom" position={Position.Bottom} />
     </div>
   )
 }

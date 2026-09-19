@@ -42,8 +42,14 @@ interface ElbowEdgeData extends Record<string, unknown> {
   barOnly?: boolean
 }
 
-export function ElbowEdge({ sourceX, sourceY, targetX, targetY, data, style }: EdgeProps) {
+/** Connectors with no union color of their own (a parent with no recorded spouse, or the
+ * shared bar of several wives) still need a stroke, or they draw nothing at all: the path is
+ * built by hand and so gets none of react-flow's default edge styling. */
+const DEFAULT_STROKE = 'var(--color-gold-dark)'
+
+export function ElbowEdge({ sourceX, sourceY, targetX, targetY, data, style: edgeStyle }: EdgeProps) {
   const info = data as ElbowEdgeData | undefined
+  const style = { ...edgeStyle, stroke: edgeStyle?.stroke ?? DEFAULT_STROKE }
   if (info?.spanLoX !== undefined && info.spanHiX !== undefined && info.viaY !== undefined) {
     const path = info.barOnly
       ? `M ${info.spanLoX} ${info.viaY} L ${info.spanHiX} ${info.viaY}`

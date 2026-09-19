@@ -982,12 +982,13 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
    * child (bar down to that child alone) — rather than each child's own edge retracing
    * the whole shared leg on its own, which drew that shared portion once per child and
    * rendered visibly thicker near `sourceId` than out at the single farthest child. */
-  function pushChildTrunkAndLegs(sourceId: string, sourceX: number, barY: number, rowChildren: Member[], color: string | undefined, idPrefix: string) {
+  function pushChildTrunkAndLegs(sourceId: string, sourceX: number, barY: number, rowChildren: Member[], color: string | undefined, idPrefix: string, sourceHandle?: string) {
     const childXs = rowChildren.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
     const style = color ? { stroke: color } : undefined
     edges.push({
       id: `trunk-${idPrefix}-${rowChildren[0].id}`,
       source: sourceId,
+      sourceHandle,
       target: rowChildren[0].id,
       type: 'elbowEdge',
       data: { viaY: barY, spanLoX: Math.min(sourceX, ...childXs), spanHiX: Math.max(sourceX, ...childXs) },
@@ -997,6 +998,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       edges.push({
         id: `child-${idPrefix}-${child.id}`,
         source: sourceId,
+        sourceHandle,
         target: child.id,
         type: 'elbowEdge',
         data: { centerX: positions.get(child.id)!.x + NODE_WIDTH / 2, viaY: barY, legOnly: true },
@@ -1273,7 +1275,9 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         return { x: p.x + NODE_WIDTH / 2, y: p.y }
       })
       const barY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
-      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, barY, rowChildren, undefined, unit.anchor.id)
+      // A solo parent has no union dot to start from, so leave from their own bottom handle —
+      // without naming it, react-flow takes the node's *first* source handle (the left side).
+      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, barY, rowChildren, undefined, unit.anchor.id, 'bottom')
     }
   }
 
