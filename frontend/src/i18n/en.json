@@ -35,6 +35,10 @@
     "chart_familyGroup": "Family group",
     "chart_fan": "Fan chart",
     "chart_hourglass": "Hourglass",
+    "chart_extended": "Extended family",
+    "reach": "Generations up",
+    "reachLess": "Fewer generations",
+    "reachMore": "More generations",
     "chartInfo": {
       "button": "About this chart",
       "shows": "Shows",
@@ -54,6 +58,10 @@
       "fan": {
         "shows": "The selected person at the center, with their ancestors in concentric rings around them: parents in the first ring, grandparents in the next, and so on. The father's line fills the left half and the mother's line the right half.",
         "hides": "Siblings, aunts and uncles, the person's own spouse and children, and any step-parent who isn't a recorded parent. Ancestors beyond nine generations are cut off."
+      },
+      "extended": {
+        "shows": "Go up the chosen number of generations from the selected person (1 = parents, 2 = grandparents, ...) and show everyone descended from those ancestors: siblings, aunts and uncles, cousins and their children, together with their spouses. Use the − / + control to widen or narrow the reach.",
+        "hides": "The parents and relatives of spouses who married in, and anyone further up than the chosen number of generations."
       },
       "hourglass": {
         "shows": "The selected person's ancestors above them, and their children, grandchildren and further descendants below, with spouses.",

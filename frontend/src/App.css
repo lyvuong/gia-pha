@@ -802,3 +802,24 @@
   fill: var(--color-text-muted);
   font-weight: 400;
 }
+
+/* Extended family reach control */
+.reach-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-gold);
+  font-size: 0.8125rem;
+}
+
+.reach-control button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 1;
+}
+
+.reach-control strong {
+  min-width: 1ch;
+  text-align: center;
+}

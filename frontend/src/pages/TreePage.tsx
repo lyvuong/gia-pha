@@ -17,7 +17,14 @@ import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
 import { setEditorProfile, useEditorProfiles } from '../hooks/useEditorProfiles'
 import { useMembers } from '../hooks/useMembers'
-import { AVAILABLE_CHART_TYPES, CHART_TYPE_OPTIONS, selectMembersForChart, type ChartType } from '../lib/chartViews'
+import {
+  AVAILABLE_CHART_TYPES,
+  CHART_TYPE_OPTIONS,
+  DEFAULT_EXTENDED_REACH,
+  MAX_EXTENDED_REACH,
+  selectMembersForChart,
+  type ChartType,
+} from '../lib/chartViews'
 import type { Member } from '../types/models'
 
 export function TreePage() {
@@ -31,6 +38,7 @@ export function TreePage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [rootMemberId, setRootMemberId] = useState<string | null>(null)
   const [chartType, setChartType] = useState<ChartType>('full')
+  const [extendedReach, setExtendedReach] = useState(DEFAULT_EXTENDED_REACH)
   const [adding, setAdding] = useState(false)
   const [showingTrash, setShowingTrash] = useState(false)
   const [editingName, setEditingName] = useState(false)
@@ -55,8 +63,8 @@ export function TreePage() {
   // The root is dropped if the person is deleted while being viewed.
   const rootId = rootMemberId && members.some((m) => m.id === rootMemberId) ? rootMemberId : null
   const chartMembers = useMemo(
-    () => selectMembersForChart(members, rootId ? chartType : 'full', rootId),
-    [members, chartType, rootId],
+    () => selectMembersForChart(members, rootId ? chartType : 'full', rootId, extendedReach),
+    [members, chartType, rootId, extendedReach],
   )
 
   function showChartFor(id: string, type: ChartType = 'pedigree') {
@@ -135,6 +143,28 @@ export function TreePage() {
                 )
               })}
             </select>
+            {chartType === 'extended' && (
+              <div className="reach-control" role="group" aria-label={t('tree.reach')}>
+                <span>{t('tree.reach')}</span>
+                <button
+                  type="button"
+                  onClick={() => setExtendedReach((r) => Math.max(1, r - 1))}
+                  disabled={extendedReach <= 1}
+                  aria-label={t('tree.reachLess')}
+                >
+                  −
+                </button>
+                <strong>{extendedReach}</strong>
+                <button
+                  type="button"
+                  onClick={() => setExtendedReach((r) => Math.min(MAX_EXTENDED_REACH, r + 1))}
+                  disabled={extendedReach >= MAX_EXTENDED_REACH}
+                  aria-label={t('tree.reachMore')}
+                >
+                  +
+                </button>
+              </div>
+            )}
             <ChartInfo chartType={chartType} />
             <button type="button" className="icon-button" onClick={showFullTree}>
               <span className="btn-label">{t('tree.showFullTree')}</span>
@@ -182,7 +212,7 @@ export function TreePage() {
           chartType={rootId ? chartType : 'full'}
           rootId={rootId}
           selectedMemberId={selectedMember?.id ?? null}
-          viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}`}
+          viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}:${chartType === 'extended' ? extendedReach : ''}`}
           onSelectMember={(m) => {
             setShowingTrash(false)
             setSelectedMember(m)

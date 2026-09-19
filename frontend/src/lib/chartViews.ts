@@ -1,11 +1,11 @@
 import type { Member } from '../types/models'
 
-export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass'
+export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass' | 'extended'
 
 /** Chart types that can currently be chosen. The rest are listed in the selector as "coming soon". */
-export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'fan', 'hourglass']
+export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'fan', 'hourglass', 'extended']
 
-export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass']
+export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass', 'extended']
 
 /**
  * The root, all of their descendants, and every spouse of those people. Spouses' own
@@ -150,7 +150,55 @@ export function selectHourglassMembers(members: Member[], rootId: string): Membe
     }))
 }
 
-export function selectMembersForChart(members: Member[], chartType: ChartType, rootId: string | null): Member[] {
+export const DEFAULT_EXTENDED_REACH = 2
+export const MAX_EXTENDED_REACH = 6
+
+/**
+ * An extended family: go up `reach` generations from the root (1 = parents, 2 = grandparents,
+ * ...) and take everyone descended from any of those ancestors and the root, with their
+ * spouses. Reach 2 is grandparents and all their descendants: siblings, aunts and uncles,
+ * first cousins and their children. Spouses' own parents stay out.
+ */
+export function selectExtendedFamilyMembers(members: Member[], rootId: string, reach: number): Member[] {
+  const byId = new Map(members.map((m) => [m.id, m]))
+  if (!byId.has(rootId)) return members
+
+  // Breadth-first up the parent links, so each ancestor is found at its shallowest depth.
+  const anchors = new Set<string>([rootId])
+  let frontier = [rootId]
+  for (let depth = 0; depth < reach && frontier.length > 0; depth++) {
+    const next: string[] = []
+    for (const id of frontier) {
+      for (const p of byId.get(id)?.parentIds ?? []) {
+        if (byId.has(p) && !anchors.has(p)) {
+          anchors.add(p)
+          next.push(p)
+        }
+      }
+    }
+    frontier = next
+  }
+
+  const included = new Set<string>()
+  for (const anchor of anchors) {
+    for (const m of selectDescendantMembers(members, anchor)) included.add(m.id)
+  }
+
+  return members
+    .filter((m) => included.has(m.id))
+    .map((m) => ({
+      ...m,
+      parentIds: m.parentIds.filter((p) => included.has(p)),
+      spouseIds: m.spouseIds.filter((s) => included.has(s)),
+    }))
+}
+
+export function selectMembersForChart(
+  members: Member[],
+  chartType: ChartType,
+  rootId: string | null,
+  extendedReach = DEFAULT_EXTENDED_REACH,
+): Member[] {
   if (!rootId) return members
   switch (chartType) {
     case 'descendant':
@@ -164,6 +212,8 @@ export function selectMembersForChart(members: Member[], chartType: ChartType, r
       return selectPedigreeMembers(members, rootId)
     case 'hourglass':
       return selectHourglassMembers(members, rootId)
+    case 'extended':
+      return selectExtendedFamilyMembers(members, rootId, extendedReach)
     default:
       return members
   }
