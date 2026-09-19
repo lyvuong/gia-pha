@@ -4,7 +4,7 @@ import { Avatar } from '../common/Avatar'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
-import { compareBirthOrder, coSpouses, siblingGroupKey } from '../../lib/treeLayout'
+import { compareSiblingDisplayOrder, coSpouses, siblingGroupKey } from '../../lib/treeLayout'
 import { trashMember, updateMember } from '../../hooks/useMembers'
 import type { GiaPha, Member } from '../../types/models'
 import { AddRelativeFlow } from './AddRelativeFlow'
@@ -19,6 +19,7 @@ interface MemberDetailPanelProps {
   editorNames: Record<string, string>
   onClose: () => void
   onDeleted: () => void
+  onViewPedigree: () => void
   onViewDescendants: () => void
 }
 
@@ -55,7 +56,7 @@ function ReorderControl({ giaPhaId, currentUid, label, group, member }: { giaPha
   )
 }
 
-export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted, onViewDescendants }: MemberDetailPanelProps) {
+export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted, onViewPedigree, onViewDescendants }:MemberDetailPanelProps) {
   const { t, i18n } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [addingRelative, setAddingRelative] = useState(false)
@@ -101,7 +102,9 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
   // the tree, and each is only offered when there's more than one to reorder.
   const ownSiblingGroupKey = siblingGroupKey(member, members)
   const fullSiblings = ownSiblingGroupKey
-    ? members.filter((m) => siblingGroupKey(m, members) === ownSiblingGroupKey).sort(compareBirthOrder)
+    ? // The tree lays siblings out men-left/women-right, so only same-gender siblings can be
+    // meaningfully reordered against each other.
+    members.filter((m) => siblingGroupKey(m, members) === ownSiblingGroupKey && m.gender === member.gender).sort(compareSiblingDisplayOrder)
     : []
   const spouseGroup = coSpouses(member, members)
 
@@ -161,6 +164,7 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       )}
 
       <div className="member-detail-actions">
+        <button type="button" onClick={onViewPedigree}>{t('tree.viewPedigree')}</button>
         <button type="button" onClick={onViewDescendants}>{t('tree.viewDescendants')}</button>
         <button type="button" onClick={() => setEditing(true)}>{t('member.edit')}</button>
         <button type="button" onClick={() => setAddingRelative(true)}>{t('member.addRelativeShort')}</button>

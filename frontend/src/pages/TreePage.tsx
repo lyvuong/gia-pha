@@ -58,7 +58,7 @@ export function TreePage() {
     [members, chartType, rootId],
   )
 
-  function showChartFor(id: string, type: ChartType = 'descendant') {
+  function showChartFor(id: string, type: ChartType = 'pedigree') {
     setRootMemberId(id)
     setChartType(type)
   }
@@ -208,6 +208,7 @@ export function TreePage() {
             editorNames={editorNames}
             onClose={() => setSelectedMember(null)}
             onDeleted={() => setSelectedMember(null)}
+            onViewPedigree={() => showChartFor(selectedMember.id, 'pedigree')}
             onViewDescendants={() => showChartFor(selectedMember.id, 'descendant')}
           />
         )}

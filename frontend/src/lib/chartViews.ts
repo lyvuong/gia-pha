@@ -3,9 +3,9 @@ import type { Member } from '../types/models'
 export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass'
 
 /** Chart types that can currently be chosen. The rest are listed in the selector as "coming soon". */
-export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant']
+export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree']
 
-export const CHART_TYPE_OPTIONS: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'fan', 'hourglass']
+export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass']
 
 /**
  * The root, all of their descendants, and every spouse of those people. Spouses' own
@@ -66,11 +66,43 @@ export function selectDescendantMembers(members: Member[], rootId: string): Memb
     }))
 }
 
+/**
+ * The root and all of their ancestors (parents, grandparents, ...). Siblings, aunts and
+ * uncles, and step-parents who aren't a recorded parent are left out; links to them are
+ * stripped from copies of the members so the layout stays self-contained.
+ */
+export function selectPedigreeMembers(members: Member[], rootId: string): Member[] {
+  const byId = new Map(members.map((m) => [m.id, m]))
+  if (!byId.has(rootId)) return members
+
+  const included = new Set<string>([rootId])
+  const stack = [rootId]
+  while (stack.length > 0) {
+    const m = byId.get(stack.pop()!)
+    for (const p of m?.parentIds ?? []) {
+      if (byId.has(p) && !included.has(p)) {
+        included.add(p)
+        stack.push(p)
+      }
+    }
+  }
+
+  return members
+    .filter((m) => included.has(m.id))
+    .map((m) => ({
+      ...m,
+      parentIds: m.parentIds.filter((p) => included.has(p)),
+      spouseIds: m.spouseIds.filter((s) => included.has(s)),
+    }))
+}
+
 export function selectMembersForChart(members: Member[], chartType: ChartType, rootId: string | null): Member[] {
   if (!rootId) return members
   switch (chartType) {
     case 'descendant':
       return selectDescendantMembers(members, rootId)
+    case 'pedigree':
+      return selectPedigreeMembers(members, rootId)
     default:
       return members
   }

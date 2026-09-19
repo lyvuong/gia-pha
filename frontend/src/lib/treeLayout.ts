@@ -272,6 +272,15 @@ export function compareBirthOrder(a: Member, b: Member): number {
   return 0
 }
 
+/** Orders siblings men-left, women-right (members with no recorded gender in between),
+ * then oldest-to-left within each gender via `compareBirthOrder`. This is the order
+ * children are laid out in, so manual "move earlier/later" only has a visible effect
+ * among siblings of the same gender. */
+export function compareSiblingDisplayOrder(a: Member, b: Member): number {
+  const rank = (m: Member) => (m.gender === 'male' ? 0 : m.gender === 'female' ? 2 : 1)
+  return rank(a) - rank(b) || compareBirthOrder(a, b)
+}
+
 /** Every other spouse `member` shares a common, remarried spouse with (that shared
  * spouse's full "stack"), for offering manual reordering among them the same way
  * `siblingKey` offers it for full siblings — `[]` when `member` isn't one of at least two
@@ -394,7 +403,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     if (!key) continue
     childrenByUnitKey.set(key, [...(childrenByUnitKey.get(key) ?? []), m])
   }
-  for (const list of childrenByUnitKey.values()) list.sort(compareBirthOrder)
+  for (const list of childrenByUnitKey.values()) list.sort(compareSiblingDisplayOrder)
 
   const unitsByKey = new Map<string, FamilyUnit>()
   for (const [key, [a, b]] of spousePairs.entries()) {
@@ -471,8 +480,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       if ((spouseCountOf.get(person.id) ?? 0) >= 2) {
         result.push({ kind: 'stack', anchor: person, wives: spouses })
       } else {
-        result.push({ kind: 'single', member: person })
-        for (const spouse of spouses) result.push({ kind: 'single', member: spouse })
+        // Husband on the left, wife on the right, whichever of the two is the sibling.
+        const husbandFirst = person.gender === 'female' && spouses.every((s) => s.gender === 'male')
+        const couple = husbandFirst ? [...spouses, person] : [person, ...spouses]
+        for (const member of couple) result.push({ kind: 'single', member })
       }
     }
 
@@ -484,7 +495,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       }
       const orderedGroups = [...siblingGroups.values()].sort((a, b) => parentAnchorX(a[0]) - parentAnchorX(b[0]))
       for (const siblingGroup of orderedGroups) {
-        for (const sibling of [...siblingGroup].sort(compareBirthOrder)) appendPerson(sibling)
+        for (const sibling of [...siblingGroup].sort(compareSiblingDisplayOrder)) appendPerson(sibling)
       }
     } else {
       const anchor = clusterMembers.reduce((best, m) =>
