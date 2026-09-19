@@ -24,7 +24,16 @@
     "createButton": "Create",
     "noTreeYet": "You don't have a family tree yet.",
     "trash": "Trash",
-    "trashEmpty": "Trash is empty."
+    "trashEmpty": "Trash is empty.",
+    "chartType": "Chart type",
+    "comingSoon": "Coming soon",
+    "showFullTree": "Show full tree",
+    "viewDescendants": "View descendants",
+    "chart_descendant": "Descendant",
+    "chart_pedigree": "Pedigree",
+    "chart_familyGroup": "Family group",
+    "chart_fan": "Fan chart",
+    "chart_hourglass": "Hourglass"
   },
   "member": {
     "fullName": "Full name",

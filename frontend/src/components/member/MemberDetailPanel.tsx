@@ -19,6 +19,7 @@ interface MemberDetailPanelProps {
   editorNames: Record<string, string>
   onClose: () => void
   onDeleted: () => void
+  onViewDescendants: () => void
 }
 
 /** "Move earlier/later" controls for repositioning `member` within `group` (their full
@@ -54,7 +55,7 @@ function ReorderControl({ giaPhaId, currentUid, label, group, member }: { giaPha
   )
 }
 
-export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted }: MemberDetailPanelProps) {
+export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted, onViewDescendants }: MemberDetailPanelProps) {
   const { t, i18n } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [addingRelative, setAddingRelative] = useState(false)
@@ -160,6 +161,7 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
       )}
 
       <div className="member-detail-actions">
+        <button type="button" onClick={onViewDescendants}>{t('tree.viewDescendants')}</button>
         <button type="button" onClick={() => setEditing(true)}>{t('member.edit')}</button>
         <button type="button" onClick={() => setAddingRelative(true)}>{t('member.addRelativeShort')}</button>
         <button type="button" onClick={handleDelete}>{t('member.moveToTrash')}</button>

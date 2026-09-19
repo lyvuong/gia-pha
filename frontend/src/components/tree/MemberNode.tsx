@@ -1,10 +1,14 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { Handle, Position, useStore, type NodeProps } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
 import { Avatar } from '../common/Avatar'
 import type { TreeNode } from '../../lib/treeLayout'
 
+/** Below this zoom, node details are hidden and the name enlarged so a huge tree stays legible. */
+const COMPACT_ZOOM = 0.45
+
 export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
   const { t } = useTranslation()
+  const compact = useStore((s) => s.transform[2] < COMPACT_ZOOM)
   const member = data.member
   if (!member) return null
 
@@ -18,7 +22,7 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
   const maidenName = member.names.find((n) => n.label === 'maidenName' && n.value)?.value
 
   return (
-    <div className={`member-node${selected ? ' member-node-selected' : ''}`}>
+    <div className={`member-node${selected ? ' member-node-selected' : ''}${compact ? ' member-node-compact' : ''}`}>
       <Handle type="target" position={Position.Top} />
       <Handle type="target" id="left" position={Position.Left} />
       <Handle type="source" id="left" position={Position.Left} />

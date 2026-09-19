@@ -1,7 +1,7 @@
 import { Background, Controls, ReactFlow, useReactFlow, type NodeMouseHandler } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, type Ref } from 'react'
-import { computeTreeLayout, NODE_HEIGHT, NODE_WIDTH } from '../../lib/treeLayout'
+import { computeTreeLayout } from '../../lib/treeLayout'
 import type { Member } from '../../types/models'
 import { ElbowEdge } from './ElbowEdge'
 import { GroupDivider } from './GroupDivider'
@@ -11,21 +11,16 @@ import { UnionNode } from './UnionNode'
 const nodeTypes = { memberNode: MemberNode, unionNode: UnionNode, groupDivider: GroupDivider }
 const edgeTypes = { elbowEdge: ElbowEdge }
 
-interface CenterOnMemberProps {
-  memberId: string | null
-}
-
-/** Rendered as a child of <ReactFlow> so it can call useReactFlow() to pan to a searched member. */
-function CenterOnMember({ memberId }: CenterOnMemberProps) {
-  const { getNode, setCenter } = useReactFlow()
+/** Rendered as a child of <ReactFlow>: re-fits the viewport whenever `viewKey` changes
+ * (a different root person or chart type), since <ReactFlow fitView> only fits on mount. */
+function FitOnChange({ viewKey }: { viewKey: string }) {
+  const { fitView } = useReactFlow()
 
   useEffect(() => {
-    if (!memberId) return
-    const node = getNode(memberId)
-    if (node) {
-      setCenter(node.position.x + NODE_WIDTH / 2, node.position.y + NODE_HEIGHT / 2, { zoom: 1, duration: 400 })
-    }
-  }, [memberId, getNode, setCenter])
+    // Wait a frame so the new nodes have been measured.
+    const frame = requestAnimationFrame(() => fitView({ duration: 400, padding: 0.1 }))
+    return () => cancelAnimationFrame(frame)
+  }, [viewKey, fitView])
 
   return null
 }
@@ -33,12 +28,13 @@ function CenterOnMember({ memberId }: CenterOnMemberProps) {
 interface TreeViewProps {
   members: Member[]
   selectedMemberId: string | null
-  centerOnMemberId: string | null
+  /** Identifies the current root person + chart type; the viewport re-fits when it changes. */
+  viewKey: string
   onSelectMember: (member: Member) => void
   containerRef?: Ref<HTMLDivElement>
 }
 
-export function TreeView({ members, selectedMemberId, centerOnMemberId, onSelectMember, containerRef }: TreeViewProps) {
+export function TreeView({ members, selectedMemberId, viewKey, onSelectMember, containerRef }: TreeViewProps) {
   const { nodes, edges } = useMemo(() => computeTreeLayout(members), [members])
 
   const styledNodes = useMemo(
@@ -60,11 +56,12 @@ export function TreeView({ members, selectedMemberId, centerOnMemberId, onSelect
         edgeTypes={edgeTypes}
         onNodeClick={handleNodeClick}
         nodesDraggable={false}
+        minZoom={0.02}
         fitView
       >
         <Background />
         <Controls />
-        <CenterOnMember memberId={centerOnMemberId} />
+        <FitOnChange viewKey={viewKey} />
       </ReactFlow>
     </div>
   )

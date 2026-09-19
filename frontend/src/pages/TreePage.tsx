@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { AddMemberIcon, TrashIcon } from '../components/common/icons'
@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
 import { setEditorProfile, useEditorProfiles } from '../hooks/useEditorProfiles'
 import { useMembers } from '../hooks/useMembers'
+import { AVAILABLE_CHART_TYPES, CHART_TYPE_OPTIONS, selectMembersForChart, type ChartType } from '../lib/chartViews'
 import type { Member } from '../types/models'
 
 export function TreePage() {
@@ -27,7 +28,8 @@ export function TreePage() {
   const editorNames = useEditorProfiles(giaPhaId)
 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [centerOnMemberId, setCenterOnMemberId] = useState<string | null>(null)
+  const [rootMemberId, setRootMemberId] = useState<string | null>(null)
+  const [chartType, setChartType] = useState<ChartType>('full')
   const [adding, setAdding] = useState(false)
   const [showingTrash, setShowingTrash] = useState(false)
   const [editingName, setEditingName] = useState(false)
@@ -48,6 +50,23 @@ export function TreePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members])
+
+  // The root is dropped if the person is deleted while being viewed.
+  const rootId = rootMemberId && members.some((m) => m.id === rootMemberId) ? rootMemberId : null
+  const chartMembers = useMemo(
+    () => selectMembersForChart(members, rootId ? chartType : 'full', rootId),
+    [members, chartType, rootId],
+  )
+
+  function showChartFor(id: string, type: ChartType = 'descendant') {
+    setRootMemberId(id)
+    setChartType(type)
+  }
+
+  function showFullTree() {
+    setRootMemberId(null)
+    setChartType('full')
+  }
 
   if (giaPhaLoading || membersLoading) return <p className="page-status">{t('common.loading')}</p>
   if (!giaPha || !user) return null
@@ -95,9 +114,32 @@ export function TreePage() {
           onSelectMember={(m) => {
             setShowingTrash(false)
             setSelectedMember(m)
-            setCenterOnMemberId(m.id)
+            showChartFor(m.id)
           }}
         />
+        {rootId && (
+          <div className="chart-type-select">
+            <select
+              value={chartType}
+              aria-label={t('tree.chartType')}
+              onChange={(e) => setChartType(e.target.value as ChartType)}
+            >
+              {CHART_TYPE_OPTIONS.map((type) => {
+                const available = AVAILABLE_CHART_TYPES.includes(type)
+                return (
+                  <option key={type} value={type} disabled={!available}>
+                    {t(`tree.chart_${type}`)}
+                    {!available && ` (${t('tree.comingSoon')})`}
+                  </option>
+                )
+              })}
+            </select>
+            <button type="button" className="icon-button" onClick={showFullTree}>
+              <span className="btn-label">{t('tree.showFullTree')}</span>
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        )}
         <button
           type="button"
           className="icon-button"
@@ -134,9 +176,9 @@ export function TreePage() {
 
       <div className="tree-page-body">
         <TreeView
-          members={members}
+          members={chartMembers}
           selectedMemberId={selectedMember?.id ?? null}
-          centerOnMemberId={centerOnMemberId}
+          viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}`}
           onSelectMember={(m) => {
             setShowingTrash(false)
             setSelectedMember(m)
@@ -166,6 +208,7 @@ export function TreePage() {
             editorNames={editorNames}
             onClose={() => setSelectedMember(null)}
             onDeleted={() => setSelectedMember(null)}
+            onViewDescendants={() => showChartFor(selectedMember.id, 'descendant')}
           />
         )}
 

@@ -694,3 +694,22 @@
   }
 }
 
+
+/* Low-detail node when zoomed far out */
+.member-node-compact .member-node-altname,
+.member-node-compact .member-node-years,
+.member-node-compact .member-node-generation {
+  display: none;
+}
+
+.member-node-compact .member-node-name {
+  font-size: 1.5em;
+  font-weight: 700;
+}
+
+/* Chart type selector */
+.chart-type-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

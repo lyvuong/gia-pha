@@ -24,7 +24,16 @@
     "createButton": "Tạo",
     "noTreeYet": "Bạn chưa có cây gia phả nào.",
     "trash": "Thùng rác",
-    "trashEmpty": "Thùng rác trống."
+    "trashEmpty": "Thùng rác trống.",
+    "chartType": "Loại biểu đồ",
+    "comingSoon": "Sắp có",
+    "showFullTree": "Xem toàn bộ cây",
+    "viewDescendants": "Xem con cháu",
+    "chart_descendant": "Con cháu",
+    "chart_pedigree": "Tổ tiên",
+    "chart_familyGroup": "Nhóm gia đình",
+    "chart_fan": "Biểu đồ quạt",
+    "chart_hourglass": "Đồng hồ cát"
   },
   "member": {
     "fullName": "Họ và tên",
