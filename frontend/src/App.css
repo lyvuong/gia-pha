@@ -1013,3 +1013,19 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
+
+/* Access request screen */
+.access-request-page p {
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.link-button {
+  margin-top: 16px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}

@@ -88,7 +88,15 @@
       "none": "Không tìm thấy quan hệ họ hàng giữa {{a}} và {{b}}.",
       "commonAncestor": "Tổ tiên chung gần nhất: {{names}}",
       "steps": "Số đời lên đến tổ tiên đó: {{a}} {{stepsA}}, {{b}} {{stepsB}}"
-    }
+    },
+    "requests": "Yêu cầu",
+    "requestsTitle": "Yêu cầu tham gia",
+    "requestsEmpty": "Không có yêu cầu nào đang chờ.",
+    "requestedOn": "xin ngày {{date}}",
+    "approve": "Duyệt",
+    "decline": "Từ chối",
+    "approveConfirm": "Cho {{name}} vào gia phả? Họ sẽ có thể xem và chỉnh sửa mọi thứ.",
+    "requestActionFailed": "Đã có lỗi. Vui lòng thử lại."
   },
   "member": {
     "fullName": "Họ và tên",
@@ -189,5 +197,16 @@
     "loading": "Đang tải...",
     "language": "Ngôn ngữ",
     "theme": "Chuyển giao diện sáng/tối"
+  },
+  "access": {
+    "pendingTitle": "Đang chờ phê duyệt",
+    "pendingBody": "Cần một thành viên trong gia đình cho phép bạn vào gia phả. Bạn sẽ được vào tự động ngay khi có người duyệt, nên có thể để trang này mở.",
+    "sending": "Đang gửi yêu cầu của bạn…",
+    "declinedTitle": "Yêu cầu bị từ chối",
+    "declinedBody": "Một thành viên trong gia đình đã từ chối yêu cầu của bạn. Nếu nhầm lẫn, bạn có thể xin lại.",
+    "askAgain": "Xin lại",
+    "failedTitle": "Không gửi được yêu cầu",
+    "failedBody": "Đã có lỗi khi xin vào gia phả. Vui lòng thử lại.",
+    "retry": "Thử lại"
   }
 }

@@ -9,6 +9,7 @@ import { SearchBar } from '../components/common/SearchBar'
 import { ThemeToggle } from '../components/common/ThemeToggle'
 import { UserMenu } from '../components/common/UserMenu'
 import { MemberDetailPanel } from '../components/member/MemberDetailPanel'
+import { JoinRequestsPanel } from '../components/member/JoinRequestsPanel'
 import { MemberEditForm } from '../components/member/MemberEditForm'
 import { TrashPanel } from '../components/member/TrashPanel'
 import { PdfExportButton } from '../components/pdf/PdfExportButton'
@@ -17,6 +18,7 @@ import { TreeView } from '../components/tree/TreeView'
 import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
 import { setEditorProfile, useEditorProfiles } from '../hooks/useEditorProfiles'
+import { usePendingJoinRequests } from '../hooks/useJoinRequests'
 import { useMembers } from '../hooks/useMembers'
 import { findKinship } from '../lib/kinship'
 import {
@@ -36,6 +38,7 @@ export function TreePage() {
   const { giaPha, loading: giaPhaLoading } = useGiaPha(giaPhaId)
   const { members, deletedMembers, loading: membersLoading } = useMembers(giaPhaId)
   const editorNames = useEditorProfiles(giaPhaId)
+  const joinRequests = usePendingJoinRequests(giaPhaId)
 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [rootMemberId, setRootMemberId] = useState<string | null>(null)
@@ -44,6 +47,7 @@ export function TreePage() {
   const [kinshipTargetId, setKinshipTargetId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [showingTrash, setShowingTrash] = useState(false)
+  const [showingRequests, setShowingRequests] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const treeContainerRef = useRef<HTMLDivElement | null>(null)
@@ -134,6 +138,7 @@ export function TreePage() {
           members={members}
           onSelectMember={(m) => {
             setShowingTrash(false)
+            setShowingRequests(false)
             setSelectedMember(m)
             showChartFor(m.id)
           }}
@@ -225,6 +230,7 @@ export function TreePage() {
           className="icon-button"
           onClick={() => {
             setShowingTrash(false)
+            setShowingRequests(false)
             setAdding(true)
           }}
           title={t('tree.addMember')}
@@ -238,6 +244,7 @@ export function TreePage() {
           onClick={() => {
             setSelectedMember(null)
             setAdding(false)
+            setShowingRequests(false)
             setShowingTrash(true)
           }}
           title={t('tree.trash')}
@@ -248,6 +255,22 @@ export function TreePage() {
             {deletedMembers.length > 0 && ` (${deletedMembers.length})`}
           </span>
         </button>
+        {joinRequests.length > 0 && (
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => {
+              setSelectedMember(null)
+              setAdding(false)
+              setShowingTrash(false)
+              setShowingRequests(true)
+            }}
+            title={t('tree.requests')}
+          >
+            <AddMemberIcon size={15} />
+            <span className="btn-label">{t('tree.requests')} ({joinRequests.length})</span>
+          </button>
+        )}
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />
@@ -266,6 +289,7 @@ export function TreePage() {
           viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}:${chartType === 'extended' ? extendedReach : ''}:${chartType === 'kinship' ? targetId ?? '' : ''}`}
           onSelectMember={(m) => {
             setShowingTrash(false)
+            setShowingRequests(false)
             setSelectedMember(m)
           }}
           containerRef={treeContainerRef}
@@ -284,7 +308,7 @@ export function TreePage() {
           </div>
         )}
 
-        {!adding && !showingTrash && selectedMember && (
+        {!adding && !showingTrash && !showingRequests && selectedMember && (
           <MemberDetailPanel
             giaPha={giaPha}
             member={selectedMember}
@@ -296,6 +320,10 @@ export function TreePage() {
             onViewPedigree={() => showChartFor(selectedMember.id, 'pedigree')}
             onViewDescendants={() => showChartFor(selectedMember.id, 'descendant')}
           />
+        )}
+
+        {showingRequests && (
+          <JoinRequestsPanel giaPhaId={giaPha.id} requests={joinRequests} onClose={() => setShowingRequests(false)} />
         )}
 
         {showingTrash && (

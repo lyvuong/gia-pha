@@ -88,7 +88,15 @@
       "none": "No family connection was found between {{a}} and {{b}}.",
       "commonAncestor": "Closest common ancestor: {{names}}",
       "steps": "Generations up to that ancestor: {{a}} {{stepsA}}, {{b}} {{stepsB}}"
-    }
+    },
+    "requests": "Requests",
+    "requestsTitle": "Requests to join",
+    "requestsEmpty": "No pending requests.",
+    "requestedOn": "asked {{date}}",
+    "approve": "Approve",
+    "decline": "Decline",
+    "approveConfirm": "Let {{name}} into the family tree? They will be able to view and edit everything.",
+    "requestActionFailed": "Something went wrong. Please try again."
   },
   "member": {
     "fullName": "Full name",
@@ -189,5 +197,16 @@
     "loading": "Loading...",
     "language": "Language",
     "theme": "Toggle light/dark theme"
+  },
+  "access": {
+    "pendingTitle": "Waiting for approval",
+    "pendingBody": "A family member needs to let you into the family tree. You will be taken in automatically as soon as someone approves you, so you can leave this page open.",
+    "sending": "Sending your request…",
+    "declinedTitle": "Request declined",
+    "declinedBody": "A family member declined your request. If that was a mistake, you can ask again.",
+    "askAgain": "Ask again",
+    "failedTitle": "Could not send your request",
+    "failedBody": "Something went wrong while asking to join the family tree. Please try again.",
+    "retry": "Try again"
   }
 }

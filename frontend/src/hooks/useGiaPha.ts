@@ -1,5 +1,4 @@
 import {
-  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -97,12 +96,6 @@ export async function findGiaPhaIdByInviteCode(inviteCode: string): Promise<{ gi
   if (!snap.exists()) return null
   const data = snap.data()
   return { giaPhaId: data.giaPhaId as string, name: data.name as string }
-}
-
-export async function joinGiaPha(giaPhaId: string, uid: string): Promise<void> {
-  await updateDoc(doc(db, 'giaPha', giaPhaId), {
-    editors: arrayUnion(uid),
-  })
 }
 
 /** Renames the tree, keeping the denormalized `inviteCodes/{code}` doc (used for the

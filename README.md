@@ -36,6 +36,10 @@ its unauthenticated / empty-data states.
    cp frontend/.env.example frontend/.env
    ```
    and fill in `VITE_FIREBASE_*` from that config.
+   Also set `VITE_GIA_PHA_ID` to the id of your family tree (the id in the
+   `/tree/<id>` address once it's created). Everyone who signs in then asks to
+   join **that one shared tree** and a current member approves them, instead of
+   each person creating their own. Leave it empty for create-your-own-tree.
 6. Deploy the security rules:
    ```bash
    npm install -g firebase-tools   # if you don't have it
@@ -69,7 +73,7 @@ Pages Functions directory needed.
 2. If deploying via the Cloudflare dashboard's git integration (Workers
    Builds), set the **build command** to `cd frontend && npm ci && npm run
    build` in the project's build settings, and add the `VITE_FIREBASE_*`
-   variables from `frontend/.env` as **build-time environment variables**
+   variables (and `VITE_GIA_PHA_ID`) from `frontend/.env` as **build-time environment variables**
    there (Vite bakes them into the bundle at build time, so `frontend/.env`
    alone isn't enough for the deployed build).
 3. Or deploy directly from the CLI:

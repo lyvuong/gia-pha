@@ -17,16 +17,22 @@ service cloud.firestore {
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.editors == [request.auth.uid];
 
-      allow update: if request.auth != null && (
-        // An existing member updates tree metadata (e.g. renaming) without touching `editors`.
-        ((request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid)
-          && request.resource.data.editors == resource.data.editors) ||
-        // A signed-in, not-yet-member user joins via invite link: appends exactly their own
-        // uid to `editors` and changes nothing else. This is the one case where a non-member
-        // is allowed to write, since membership itself doesn't exist yet (chicken-and-egg).
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
-          && request.resource.data.editors == resource.data.editors.concat([request.auth.uid]))
-      );
+      // Only existing members ever change the tree document — a non-member can never write
+      // to it, so knowing the tree's id (it ships in the app) is not enough to get in.
+      allow update: if request.auth != null
+        && (request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid)
+        && (
+          // Update tree metadata (e.g. renaming) without touching `editors`.
+          request.resource.data.editors == resource.data.editors ||
+          // Approve a join request: append exactly one uid to `editors` — and only one who has
+          // asked, i.e. has a doc in `joinRequests`. Nothing else may change in the same write.
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
+            && request.resource.data.editors.size() == resource.data.editors.size() + 1
+            && request.resource.data.editors == resource.data.editors.concat(
+              [request.resource.data.editors[request.resource.data.editors.size() - 1]])
+            && exists(/databases/$(database)/documents/giaPha/$(giaPhaId)/joinRequests/$(
+              request.resource.data.editors[request.resource.data.editors.size() - 1])))
+        );
 
       allow delete: if false;
 
@@ -48,6 +54,35 @@ service cloud.firestore {
           // cleanly. That check is enforced client-side only (accepted v1 gap; a full fix
           // would need Cloud Functions, which is out of scope per spec §16).
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stories'])
+        );
+
+        allow delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
+      }
+
+      // A signed-in person asking to be let in. They can only create/read their own request;
+      // members read them all, decline (status -> declined) and delete them (approving deletes
+      // the request as it adds the uid to `editors`).
+      match /joinRequests/{uid} {
+        allow read: if request.auth != null
+          && (request.auth.uid == uid || isMember(giaPhaId, request.auth.uid));
+
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && !isMember(giaPhaId, uid)
+          && request.resource.data.keys().hasOnly(['uid', 'displayName', 'contact', 'status', 'requestedAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.status == 'pending';
+
+        allow update: if request.auth != null && (
+          // A member declines (or reopens) a request.
+          (isMember(giaPhaId, request.auth.uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && request.resource.data.status in ['pending', 'declined']) ||
+          // The requester asks again after being declined.
+          (request.auth.uid == uid
+            && resource.data.status == 'declined'
+            && request.resource.data.status == 'pending'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'requestedAt']))
         );
 
         allow delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
