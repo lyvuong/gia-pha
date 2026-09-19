@@ -23,6 +23,9 @@ export interface JoinRequest {
   displayName: string
   /** Phone number or email, so members can tell who is asking. */
   contact: string
+  /** Where they live, and how they're related to the family, as they described it. */
+  country: string
+  notes: string
   status: 'pending' | 'declined'
   requestedAt: number
 }
@@ -33,6 +36,8 @@ function fromDoc(id: string, data: Record<string, unknown>): JoinRequest {
     uid: id,
     displayName: (data.displayName as string) ?? '',
     contact: (data.contact as string) ?? '',
+    country: (data.country as string) ?? '',
+    notes: (data.notes as string) ?? '',
     status: data.status === 'declined' ? 'declined' : 'pending',
     // `requestedAt` is briefly null on the writer's own device until the server timestamp resolves.
     requestedAt: requestedAt?.toMillis() ?? Date.now(),
@@ -106,19 +111,28 @@ interface Requester {
   email: string | null
 }
 
-export async function requestAccess(giaPhaId: string, user: Requester): Promise<void> {
+/** What the person tells the family about themselves, so a member can recognise them. */
+export interface JoinRequestDetails {
+  displayName: string
+  country: string
+  notes: string
+}
+
+export async function requestAccess(giaPhaId: string, user: Requester, details: JoinRequestDetails): Promise<void> {
   await setDoc(requestRef(giaPhaId, user.uid), {
     uid: user.uid,
-    displayName: user.displayName ?? user.phoneNumber ?? user.email ?? user.uid,
+    displayName: details.displayName,
     contact: user.phoneNumber ?? user.email ?? '',
+    country: details.country,
+    notes: details.notes,
     status: 'pending',
     requestedAt: serverTimestamp(),
   })
 }
 
-/** After a decline, the requester may ask again. */
-export async function requestAccessAgain(giaPhaId: string, uid: string): Promise<void> {
-  await updateDoc(requestRef(giaPhaId, uid), { status: 'pending', requestedAt: serverTimestamp() })
+/** After a decline, the requester may correct their details and ask again. */
+export async function requestAccessAgain(giaPhaId: string, uid: string, details: JoinRequestDetails): Promise<void> {
+  await updateDoc(requestRef(giaPhaId, uid), { ...details, status: 'pending', requestedAt: serverTimestamp() })
 }
 
 /** Adds the requester to the tree's editors and clears their request, in one atomic write. */

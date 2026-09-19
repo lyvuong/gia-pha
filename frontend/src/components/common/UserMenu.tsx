@@ -3,10 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthProvider'
 import { Avatar } from './Avatar'
 
-export function UserMenu() {
+interface UserMenuProps {
+  /** When given, the menu offers to copy this invitation link for sharing with relatives. */
+  inviteLink?: string
+}
+
+export function UserMenu({ inviteLink }: UserMenuProps) {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -26,6 +32,18 @@ export function UserMenu() {
   }, [open])
 
   if (!user) return null
+
+  async function copyInviteLink() {
+    if (!inviteLink) return
+    try {
+      await navigator.clipboard.writeText(inviteLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard access can be blocked (insecure origin, permissions); let them copy by hand.
+      window.prompt(t('auth.copyInvitePrompt'), inviteLink)
+    }
+  }
 
   const name = user.displayName ?? user.phoneNumber ?? user.email ?? ''
 
@@ -48,6 +66,11 @@ export function UserMenu() {
             <strong>{name}</strong>
             {user.email && user.email !== name && <span>{user.email}</span>}
           </div>
+          {inviteLink && (
+            <button type="button" role="menuitem" className="user-menu-item" onClick={copyInviteLink}>
+              {copied ? t('auth.inviteLinkCopied') : t('auth.copyInviteLink')}
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"

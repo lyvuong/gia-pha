@@ -12,7 +12,10 @@
     "verifyCode": "Verify",
     "signOut": "Sign out",
     "phoneHint": "Include your country code, e.g. +1 703 217 7712 or +84 912 345 678.",
-    "invalidPhone": "Enter your phone number with its country code, e.g. +1 703 217 7712."
+    "invalidPhone": "Enter your phone number with its country code, e.g. +1 703 217 7712.",
+    "copyInviteLink": "Copy invite link",
+    "inviteLinkCopied": "Link copied ✓",
+    "copyInvitePrompt": "Copy this invite link:"
   },
   "tree": {
     "title": "Family Tree",
@@ -201,12 +204,17 @@
   "access": {
     "pendingTitle": "Waiting for approval",
     "pendingBody": "A family member needs to let you into the family tree. You will be taken in automatically as soon as someone approves you, so you can leave this page open.",
-    "sending": "Sending your request…",
     "declinedTitle": "Request declined",
     "declinedBody": "A family member declined your request. If that was a mistake, you can ask again.",
     "askAgain": "Ask again",
-    "failedTitle": "Could not send your request",
     "failedBody": "Something went wrong while asking to join the family tree. Please try again.",
-    "retry": "Try again"
+    "formTitle": "Ask to join the family tree",
+    "formIntro": "Tell the family who you are, so a member can recognise you and let you in.",
+    "nameLabel": "Your full name",
+    "countryLabel": "Country",
+    "countryPlaceholder": "e.g. Vietnam",
+    "notesLabel": "How are you related to the family?",
+    "notesPlaceholder": "e.g. I am Anh’s cousin, son of Uncle Hai from Hà Nội.",
+    "submit": "Ask to join"
   }
 }

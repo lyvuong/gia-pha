@@ -8,6 +8,13 @@ service cloud.firestore {
       return uid in giaPha.editors || uid == giaPha.ownerUid;
     }
 
+    // What a join request may say about the person asking: bounded text fields.
+    function validRequestDetails(d) {
+      return d.displayName is string && d.displayName.size() > 0 && d.displayName.size() <= 100
+        && d.country is string && d.country.size() > 0 && d.country.size() <= 60
+        && d.notes is string && d.notes.size() <= 1000;
+    }
+
     match /giaPha/{giaPhaId} {
       allow read: if request.auth != null &&
         (request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid);
@@ -69,8 +76,10 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.auth.uid == uid
           && !isMember(giaPhaId, uid)
-          && request.resource.data.keys().hasOnly(['uid', 'displayName', 'contact', 'status', 'requestedAt'])
+          && request.resource.data.keys().hasOnly(['uid', 'displayName', 'contact', 'country', 'notes', 'status', 'requestedAt'])
           && request.resource.data.uid == uid
+          && request.resource.data.contact is string && request.resource.data.contact.size() <= 100
+          && validRequestDetails(request.resource.data)
           && request.resource.data.status == 'pending';
 
         allow update: if request.auth != null && (
@@ -78,11 +87,13 @@ service cloud.firestore {
           (isMember(giaPhaId, request.auth.uid)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
             && request.resource.data.status in ['pending', 'declined']) ||
-          // The requester asks again after being declined.
+          // The requester corrects their details and asks again after being declined.
           (request.auth.uid == uid
             && resource.data.status == 'declined'
             && request.resource.data.status == 'pending'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'requestedAt']))
+            && validRequestDetails(request.resource.data)
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'requestedAt', 'displayName', 'country', 'notes']))
         );
 
         allow delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);

@@ -42,7 +42,9 @@ export function JoinRequestsPanel({ giaPhaId, requests, onClose }: JoinRequestsP
               <span className="trash-row-name">
                 {r.displayName}
                 {r.contact && r.contact !== r.displayName && <span className="trash-row-date"> · {r.contact}</span>}
+                {r.country && <span className="trash-row-date"> · {r.country}</span>}
                 <span className="trash-row-date"> · {t('tree.requestedOn', { date: formatDate(r.requestedAt, i18n.language) })}</span>
+                {r.notes && <span className="request-notes">{r.notes}</span>}
               </span>
               <div className="trash-row-actions">
                 <button type="button" onClick={() => act(r, 'approve')} disabled={busyUid === r.uid}>

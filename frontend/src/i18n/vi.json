@@ -12,7 +12,10 @@
     "verifyCode": "Xác nhận",
     "signOut": "Đăng xuất",
     "phoneHint": "Nhập kèm mã quốc gia, ví dụ +84 912 345 678 hoặc +1 703 217 7712.",
-    "invalidPhone": "Vui lòng nhập số điện thoại kèm mã quốc gia, ví dụ +84 912 345 678."
+    "invalidPhone": "Vui lòng nhập số điện thoại kèm mã quốc gia, ví dụ +84 912 345 678.",
+    "copyInviteLink": "Sao chép liên kết mời",
+    "inviteLinkCopied": "Đã sao chép ✓",
+    "copyInvitePrompt": "Sao chép liên kết mời này:"
   },
   "tree": {
     "title": "Cây gia phả",
@@ -201,12 +204,17 @@
   "access": {
     "pendingTitle": "Đang chờ phê duyệt",
     "pendingBody": "Cần một thành viên trong gia đình cho phép bạn vào gia phả. Bạn sẽ được vào tự động ngay khi có người duyệt, nên có thể để trang này mở.",
-    "sending": "Đang gửi yêu cầu của bạn…",
     "declinedTitle": "Yêu cầu bị từ chối",
     "declinedBody": "Một thành viên trong gia đình đã từ chối yêu cầu của bạn. Nếu nhầm lẫn, bạn có thể xin lại.",
     "askAgain": "Xin lại",
-    "failedTitle": "Không gửi được yêu cầu",
     "failedBody": "Đã có lỗi khi xin vào gia phả. Vui lòng thử lại.",
-    "retry": "Thử lại"
+    "formTitle": "Xin vào gia phả",
+    "formIntro": "Hãy cho gia đình biết bạn là ai, để một thành viên nhận ra bạn và cho bạn vào.",
+    "nameLabel": "Họ và tên của bạn",
+    "countryLabel": "Quốc gia",
+    "countryPlaceholder": "ví dụ: Việt Nam",
+    "notesLabel": "Bạn có quan hệ thế nào với gia đình?",
+    "notesPlaceholder": "ví dụ: Tôi là em họ của Anh, con của bác Hai ở Hà Nội.",
+    "submit": "Xin vào"
   }
 }

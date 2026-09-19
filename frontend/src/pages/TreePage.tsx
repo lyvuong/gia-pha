@@ -274,7 +274,7 @@ export function TreePage() {
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />
-        <UserMenu />
+        <UserMenu inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined} />
       </header>
 
       <div className="tree-page-body">
