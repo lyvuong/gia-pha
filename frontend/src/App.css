@@ -752,3 +752,53 @@
   margin: 0;
   line-height: 1.4;
 }
+
+/* Fan chart */
+.fan-chart {
+  display: block;
+  overflow: visible;
+}
+
+.fan-wedge {
+  cursor: pointer;
+}
+
+.fan-wedge path,
+.fan-wedge circle {
+  fill: var(--color-panel-bg);
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.fan-wedge[data-gender='male'] path,
+.fan-wedge[data-gender='male'] circle {
+  fill: color-mix(in srgb, var(--color-gender-male) 18%, var(--color-panel-bg));
+  stroke: var(--color-gender-male);
+}
+
+.fan-wedge[data-gender='female'] path,
+.fan-wedge[data-gender='female'] circle {
+  fill: color-mix(in srgb, var(--color-gender-female) 22%, var(--color-panel-bg));
+  stroke: var(--color-gender-female);
+}
+
+.fan-wedge:hover path,
+.fan-wedge:hover circle {
+  stroke-width: 2;
+}
+
+.fan-wedge-selected path,
+.fan-wedge-selected circle {
+  stroke: var(--color-maroon);
+  stroke-width: 3;
+}
+
+.fan-text {
+  fill: var(--color-text);
+  font-weight: 600;
+}
+
+.fan-text-muted {
+  fill: var(--color-text-muted);
+  font-weight: 400;
+}

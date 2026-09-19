@@ -51,6 +51,10 @@
         "shows": "The selected person, their spouse or spouses, and their children (plus a child's other recorded parent).",
         "hides": "The person's parents and siblings, grandchildren, and the spouses of the children."
       },
+      "fan": {
+        "shows": "The selected person at the center, with their ancestors in concentric rings around them: parents in the first ring, grandparents in the next, and so on. The father's line fills the left half and the mother's line the right half.",
+        "hides": "Siblings, aunts and uncles, the person's own spouse and children, and any step-parent who isn't a recorded parent. Ancestors beyond nine generations are cut off."
+      },
       "hourglass": {
         "shows": "The selected person's ancestors above them, and their children, grandchildren and further descendants below, with spouses.",
         "hides": "Siblings, aunts, uncles and cousins, and the parents of spouses who married in."

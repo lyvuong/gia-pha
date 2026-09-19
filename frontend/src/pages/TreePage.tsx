@@ -179,6 +179,8 @@ export function TreePage() {
       <div className="tree-page-body">
         <TreeView
           members={chartMembers}
+          chartType={rootId ? chartType : 'full'}
+          rootId={rootId}
           selectedMemberId={selectedMember?.id ?? null}
           viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}`}
           onSelectMember={(m) => {

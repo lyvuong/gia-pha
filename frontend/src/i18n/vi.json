@@ -51,6 +51,10 @@
         "shows": "Người được chọn, vợ/chồng, và các con (cùng người cha/mẹ còn lại của mỗi con nếu có ghi).",
         "hides": "Cha mẹ và anh chị em của người đó, các cháu, và vợ/chồng của các con."
       },
+      "fan": {
+        "shows": "Người được chọn ở giữa, các bậc tổ tiên xếp thành những vòng tròn đồng tâm: cha mẹ ở vòng đầu, ông bà ở vòng kế tiếp, và cứ thế. Bên cha ở nửa trái, bên mẹ ở nửa phải.",
+        "hides": "Anh chị em, cô dì chú bác, vợ/chồng và con của chính người đó, và cha/mẹ kế không được ghi là cha mẹ. Các đời tổ tiên quá chín đời bị cắt bớt."
+      },
       "hourglass": {
         "shows": "Tổ tiên của người được chọn ở phía trên, con cháu các đời ở phía dưới, cùng vợ/chồng.",
         "hides": "Anh chị em, cô dì chú bác, anh chị em họ, và cha mẹ của những người về làm dâu/rể."

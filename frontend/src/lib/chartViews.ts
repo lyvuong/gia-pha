@@ -3,7 +3,7 @@ import type { Member } from '../types/models'
 export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass'
 
 /** Chart types that can currently be chosen. The rest are listed in the selector as "coming soon". */
-export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'hourglass']
+export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'fan', 'hourglass']
 
 export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass']
 
@@ -158,6 +158,9 @@ export function selectMembersForChart(members: Member[], chartType: ChartType, r
     case 'familyGroup':
       return selectFamilyGroupMembers(members, rootId)
     case 'pedigree':
+      return selectPedigreeMembers(members, rootId)
+    case 'fan':
+      // The fan draws the same people as the pedigree, just radially (see `computeFanLayout`).
       return selectPedigreeMembers(members, rootId)
     case 'hourglass':
       return selectHourglassMembers(members, rootId)

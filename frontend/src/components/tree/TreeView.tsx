@@ -1,14 +1,17 @@
 import { Background, Controls, ReactFlow, useReactFlow, type NodeMouseHandler } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, type Ref } from 'react'
-import { computeTreeLayout } from '../../lib/treeLayout'
+import type { ChartType } from '../../lib/chartViews'
+import { computeFanLayout } from '../../lib/fanLayout'
+import { computeTreeLayout, type TreeNode } from '../../lib/treeLayout'
 import type { Member } from '../../types/models'
 import { ElbowEdge } from './ElbowEdge'
+import { FanNode } from './FanNode'
 import { GroupDivider } from './GroupDivider'
 import { MemberNode } from './MemberNode'
 import { UnionNode } from './UnionNode'
 
-const nodeTypes = { memberNode: MemberNode, unionNode: UnionNode, groupDivider: GroupDivider }
+const nodeTypes = { memberNode: MemberNode, unionNode: UnionNode, groupDivider: GroupDivider, fanNode: FanNode }
 const edgeTypes = { elbowEdge: ElbowEdge }
 
 /** Rendered as a child of <ReactFlow>: re-fits the viewport whenever `viewKey` changes
@@ -27,6 +30,9 @@ function FitOnChange({ viewKey }: { viewKey: string }) {
 
 interface TreeViewProps {
   members: Member[]
+  chartType: ChartType
+  /** The person the chart is centered on, or null for the full tree. */
+  rootId: string | null
   selectedMemberId: string | null
   /** Identifies the current root person + chart type; the viewport re-fits when it changes. */
   viewKey: string
@@ -34,12 +40,37 @@ interface TreeViewProps {
   containerRef?: Ref<HTMLDivElement>
 }
 
-export function TreeView({ members, selectedMemberId, viewKey, onSelectMember, containerRef }: TreeViewProps) {
-  const { nodes, edges } = useMemo(() => computeTreeLayout(members), [members])
+export function TreeView({ members, chartType, rootId, selectedMemberId, viewKey, onSelectMember, containerRef }: TreeViewProps) {
+  const isFan = chartType === 'fan' && rootId !== null
+  const { nodes, edges } = useMemo(() => {
+    if (isFan) {
+      const fan = computeFanLayout(members, rootId)
+      if (!fan) return { nodes: [], edges: [] }
+      const fanNode: TreeNode = {
+        id: 'fan-chart',
+        type: 'fanNode',
+        position: { x: 0, y: 0 },
+        width: fan.width,
+        height: fan.height,
+        draggable: false,
+        selectable: false,
+        data: {
+          fan,
+          selectedMemberId,
+          onSelectMember: (id: string) => {
+            const member = members.find((m) => m.id === id)
+            if (member) onSelectMember(member)
+          },
+        },
+      }
+      return { nodes: [fanNode], edges: [] }
+    }
+    return computeTreeLayout(members)
+  }, [members, isFan, rootId, selectedMemberId, onSelectMember])
 
   const styledNodes = useMemo(
-    () => nodes.map((n) => ({ ...n, selected: n.id === selectedMemberId })),
-    [nodes, selectedMemberId],
+    () => nodes.map((n) => (isFan ? n : { ...n, selected: n.id === selectedMemberId })),
+    [nodes, selectedMemberId, isFan],
   )
 
   const handleNodeClick: NodeMouseHandler = (_event, node) => {
