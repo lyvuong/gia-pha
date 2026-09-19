@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addMember, updateMember } from '../../hooks/useMembers'
 import { NAME_LABELS, type Education, type Member, type NameEntry, type NewMember, type PartialDate } from '../../types/models'
+import { Markdown } from '../common/Markdown'
 import { TrashIcon } from '../common/icons'
 import { PhotoUploader } from './PhotoUploader'
 
@@ -15,6 +16,9 @@ interface MemberEditFormProps {
   onSaved: (memberId: string) => void
   onCancel: () => void
 }
+
+/** Larger files are almost certainly not a biography; also keeps the member document small. */
+const MAX_BIO_FILE_BYTES = 200 * 1024
 
 function emptyDraft(overrides?: Partial<NewMember>): NewMember {
   return {
@@ -68,6 +72,9 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
       : emptyDraft(initialDraft),
   )
   const [saving, setSaving] = useState(false)
+  const [previewingBio, setPreviewingBio] = useState(false)
+  const [bioImportError, setBioImportError] = useState<string | null>(null)
+  const bioFileInput = useRef<HTMLInputElement | null>(null)
 
   // The death date's day/month/year are edited as three separate text fields (year
   // optional — see `PartialDate`) rather than bound directly to `draft.deathDate`, so a
@@ -96,6 +103,25 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
 
   function updateField<K extends keyof NewMember>(key: K, value: NewMember[K]) {
     setDraft((d) => ({ ...d, [key]: value }))
+  }
+
+  /** Loads a Markdown/text file into the biography: replaces it when empty, else appends below it. */
+  async function importBioFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // so choosing the same file again still fires a change
+    if (!file) return
+    setBioImportError(null)
+    if (file.size > MAX_BIO_FILE_BYTES) {
+      setBioImportError(t('member.bioFileTooLarge', { kb: MAX_BIO_FILE_BYTES / 1024 }))
+      return
+    }
+    try {
+      const text = (await file.text()).trim()
+      if (!text) return
+      setDraft((d) => ({ ...d, bioOverride: d.bioOverride ? `${d.bioOverride}\n\n${text}` : text }))
+    } catch {
+      setBioImportError(t('member.bioFileReadFailed'))
+    }
   }
 
   function syncDeathDate(day: string, month: string, year: string, isLunar: boolean) {
@@ -420,20 +446,53 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
         )}
       </div>
 
-      <label>
-        {t('member.bio')}
-        <textarea
-          value={draft.bioOverride ?? ''}
-          onChange={(e) => updateField('bioOverride', e.target.value || null)}
-          rows={3}
-          placeholder={t('member.bioOverridePlaceholder')}
-        />
-        {draft.bioOverride && (
-          <button type="button" onClick={() => updateField('bioOverride', null)}>
-            {t('member.resetBio')}
+      <div className="bio-field">
+        <label>
+          {t('member.bio')}
+          {previewingBio && draft.bioOverride ? (
+            <div className="member-bio member-bio-md bio-preview">
+              <Markdown>{draft.bioOverride}</Markdown>
+            </div>
+          ) : (
+            <textarea
+              value={draft.bioOverride ?? ''}
+              onChange={(e) => updateField('bioOverride', e.target.value || null)}
+              rows={8}
+              placeholder={t('member.bioOverridePlaceholder')}
+            />
+          )}
+        </label>
+        <p className="bio-hint">{t('member.bioHint')}</p>
+        <div className="bio-actions">
+          <input
+            ref={bioFileInput}
+            type="file"
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
+            hidden
+            onChange={importBioFile}
+          />
+          <button type="button" onClick={() => bioFileInput.current?.click()}>
+            {t('member.bioImport')}
           </button>
-        )}
-      </label>
+          {draft.bioOverride && (
+            <button type="button" onClick={() => setPreviewingBio((v) => !v)}>
+              {previewingBio ? t('member.bioEdit') : t('member.bioPreview')}
+            </button>
+          )}
+          {draft.bioOverride && (
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewingBio(false)
+                updateField('bioOverride', null)
+              }}
+            >
+              {t('member.resetBio')}
+            </button>
+          )}
+        </div>
+        {bioImportError && <p className="error-text">{bioImportError}</p>}
+      </div>
 
       <div className="form-actions">
         <button type="submit" disabled={saving}>{t('member.save')}</button>

@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
 import { formatDate } from './formatDate'
 import { generateBio } from './generateBio'
+import { markdownToPlainText } from './markdownText'
 import { vietnameseCollator } from './normalizeVietnamese'
 import { NOTO_SANS_BOLD_BASE64, NOTO_SANS_REGULAR_BASE64 } from './notoSansFont'
 import { generationOffset } from './treeLayout'
@@ -123,7 +124,7 @@ export async function exportGiaPhaPdf(
         y += 5
       }
 
-      const bio = member.bioOverride || generateBio(member, t)
+      const bio = member.bioOverride ? markdownToPlainText(member.bioOverride) : generateBio(member, t)
       if (bio) {
         y = addWrappedText(doc, bio, MARGIN + 4, y, contentWidth - 4)
       }

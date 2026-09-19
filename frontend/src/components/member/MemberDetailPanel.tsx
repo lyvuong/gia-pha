@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Avatar } from '../common/Avatar'
+import { Markdown } from '../common/Markdown'
 import { PlaceLink } from '../common/PlaceLink'
 import { generateBio } from '../../lib/generateBio'
 import { formatDate } from '../../lib/formatDate'
@@ -90,6 +91,7 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
     )
   }
 
+  // A hand-written biography is Markdown; the auto-generated one is plain text.
   const bio = member.bioOverride || generateBio(member, t)
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
@@ -122,7 +124,13 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
         <h2>{member.fullName}</h2>
       </div>
 
-      {bio && <p className="member-bio">{bio}</p>}
+      {member.bioOverride ? (
+        <div className="member-bio member-bio-md">
+          <Markdown>{member.bioOverride}</Markdown>
+        </div>
+      ) : (
+        bio && <p className="member-bio">{bio}</p>
+      )}
 
       <dl>
         {member.gender && (

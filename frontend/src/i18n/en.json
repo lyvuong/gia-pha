@@ -136,7 +136,13 @@
     "siblingOrder": "Order among siblings",
     "spouseOrder": "Order among spouses",
     "moveEarlier": "Move earlier",
-    "moveLater": "Move later"
+    "moveLater": "Move later",
+    "bioHint": "Markdown is supported, and links are clickable. Paste text or a link, or import a .md or .txt file.",
+    "bioImport": "Import .md / .txt file",
+    "bioPreview": "Preview",
+    "bioEdit": "Edit",
+    "bioFileTooLarge": "That file is too large (limit {{kb}} KB).",
+    "bioFileReadFailed": "Could not read that file."
   },
   "relationship": {
     "father": "Father",

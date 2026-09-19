@@ -136,7 +136,13 @@
     "siblingOrder": "Thứ tự giữa anh chị em",
     "spouseOrder": "Thứ tự giữa các vợ/chồng",
     "moveEarlier": "Chuyển lên trước",
-    "moveLater": "Chuyển xuống sau"
+    "moveLater": "Chuyển xuống sau",
+    "bioHint": "Hỗ trợ Markdown và liên kết có thể nhấn được. Dán văn bản hoặc đường dẫn, hoặc nhập tệp .md / .txt.",
+    "bioImport": "Nhập tệp .md / .txt",
+    "bioPreview": "Xem trước",
+    "bioEdit": "Chỉnh sửa",
+    "bioFileTooLarge": "Tệp quá lớn (giới hạn {{kb}} KB).",
+    "bioFileReadFailed": "Không đọc được tệp này."
   },
   "relationship": {
     "father": "Cha",

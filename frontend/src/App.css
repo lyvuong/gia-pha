@@ -936,3 +936,73 @@
 .user-menu-item:hover {
   background: var(--color-bg);
 }
+
+/* Biography: Markdown rendering and editor */
+.member-bio-md > :first-child {
+  margin-top: 0;
+}
+
+.member-bio-md > :last-child {
+  margin-bottom: 0;
+}
+
+.member-bio-md a {
+  color: var(--color-maroon);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+:root[data-theme='dark'] .member-bio-md a {
+  color: var(--color-gold);
+}
+
+.member-bio-md h1,
+.member-bio-md h2,
+.member-bio-md h3 {
+  font-size: 1rem;
+  margin: 12px 0 4px;
+  color: var(--color-text);
+}
+
+.member-bio-md pre,
+.member-bio-md code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.member-bio-md pre {
+  overflow-x: auto;
+  background: var(--color-bg);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.member-bio-md blockquote {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--color-border);
+}
+
+.member-bio-md img {
+  max-width: 100%;
+}
+
+.bio-preview {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-height: 8em;
+  font-weight: 400;
+}
+
+.bio-hint {
+  margin: 4px 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.bio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
