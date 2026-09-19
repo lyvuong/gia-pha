@@ -63,3 +63,13 @@ export function LanguageIcon({ size = 16 }: IconProps) {
     </svg>
   )
 }
+
+export function InfoIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...commonProps} width={size} height={size} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+      <line x1="12" y1="7.5" x2="12" y2="7.5" />
+    </svg>
+  )
+}

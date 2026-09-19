@@ -34,7 +34,28 @@
     "chart_pedigree": "Pedigree",
     "chart_familyGroup": "Family group",
     "chart_fan": "Fan chart",
-    "chart_hourglass": "Hourglass"
+    "chart_hourglass": "Hourglass",
+    "chartInfo": {
+      "button": "About this chart",
+      "shows": "Shows",
+      "hides": "Does not show",
+      "pedigree": {
+        "shows": "The selected person and their ancestors: parents, grandparents, and so on up the line.",
+        "hides": "Siblings, aunts and uncles, the person's own spouse and children, and any step-parent who isn't a recorded parent."
+      },
+      "descendant": {
+        "shows": "The selected person, all of their children, grandchildren and further descendants, and each of those people's spouses.",
+        "hides": "The person's parents and ancestors, their siblings, and the parents of the spouses who married in."
+      },
+      "familyGroup": {
+        "shows": "The selected person, their spouse or spouses, and their children (plus a child's other recorded parent).",
+        "hides": "The person's parents and siblings, grandchildren, and the spouses of the children."
+      },
+      "hourglass": {
+        "shows": "The selected person's ancestors above them, and their children, grandchildren and further descendants below, with spouses.",
+        "hides": "Siblings, aunts, uncles and cousins, and the parents of spouses who married in."
+      }
+    }
   },
   "member": {
     "fullName": "Full name",

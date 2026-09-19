@@ -34,7 +34,28 @@
     "chart_pedigree": "Tổ tiên",
     "chart_familyGroup": "Nhóm gia đình",
     "chart_fan": "Biểu đồ quạt",
-    "chart_hourglass": "Đồng hồ cát"
+    "chart_hourglass": "Đồng hồ cát",
+    "chartInfo": {
+      "button": "Giới thiệu biểu đồ này",
+      "shows": "Hiển thị",
+      "hides": "Không hiển thị",
+      "pedigree": {
+        "shows": "Người được chọn và các bậc tổ tiên: cha mẹ, ông bà, và cứ thế lên trên.",
+        "hides": "Anh chị em, cô dì chú bác, vợ/chồng và con của chính người đó, và cha/mẹ kế không được ghi là cha mẹ."
+      },
+      "descendant": {
+        "shows": "Người được chọn, tất cả con, cháu, chắt và các đời sau, cùng vợ/chồng của từng người.",
+        "hides": "Cha mẹ và tổ tiên của người đó, anh chị em, và cha mẹ của những người về làm dâu/rể."
+      },
+      "familyGroup": {
+        "shows": "Người được chọn, vợ/chồng, và các con (cùng người cha/mẹ còn lại của mỗi con nếu có ghi).",
+        "hides": "Cha mẹ và anh chị em của người đó, các cháu, và vợ/chồng của các con."
+      },
+      "hourglass": {
+        "shows": "Tổ tiên của người được chọn ở phía trên, con cháu các đời ở phía dưới, cùng vợ/chồng.",
+        "hides": "Anh chị em, cô dì chú bác, anh chị em họ, và cha mẹ của những người về làm dâu/rể."
+      }
+    }
   },
   "member": {
     "fullName": "Họ và tên",

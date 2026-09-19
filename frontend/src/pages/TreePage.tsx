@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { AddMemberIcon, TrashIcon } from '../components/common/icons'
+import { ChartInfo } from '../components/common/ChartInfo'
 import { LanguageToggle } from '../components/common/LanguageToggle'
 import { Logo } from '../components/common/Logo'
 import { SearchBar } from '../components/common/SearchBar'
@@ -134,6 +135,7 @@ export function TreePage() {
                 )
               })}
             </select>
+            <ChartInfo chartType={chartType} />
             <button type="button" className="icon-button" onClick={showFullTree}>
               <span className="btn-label">{t('tree.showFullTree')}</span>
               <span aria-hidden="true">×</span>
