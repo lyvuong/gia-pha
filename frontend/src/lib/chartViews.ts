@@ -3,7 +3,7 @@ import type { Member } from '../types/models'
 export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass'
 
 /** Chart types that can currently be chosen. The rest are listed in the selector as "coming soon". */
-export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree']
+export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup']
 
 export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass']
 
@@ -96,11 +96,47 @@ export function selectPedigreeMembers(members: Member[], rootId: string): Member
     }))
 }
 
+/**
+ * A family group: the root, every spouse of theirs, and the root's children (plus each
+ * child's other recorded parent, so a child of a former partner still lays out as a couple's
+ * child). Nobody's own parents or children's spouses/descendants are included. Links to
+ * members outside the subset are stripped from copies, as for the other charts.
+ */
+export function selectFamilyGroupMembers(members: Member[], rootId: string): Member[] {
+  const byId = new Map(members.map((m) => [m.id, m]))
+  const root = byId.get(rootId)
+  if (!root) return members
+
+  const included = new Set<string>([rootId])
+  for (const m of members) {
+    // Spouse links may be recorded on either side of the couple.
+    if (root.spouseIds.includes(m.id) || m.spouseIds.includes(rootId)) included.add(m.id)
+  }
+  const children = members.filter((m) => m.parentIds.includes(rootId))
+  for (const child of children) {
+    included.add(child.id)
+    for (const p of child.parentIds) if (byId.has(p)) included.add(p)
+  }
+
+  // Only the family's own parent-child and marriage links are kept: the root's and their
+  // spouses' parents are outside the subset, and children's spouses aren't drawn.
+  const childIds = new Set(children.map((c) => c.id))
+  return members
+    .filter((m) => included.has(m.id))
+    .map((m) => ({
+      ...m,
+      parentIds: childIds.has(m.id) ? m.parentIds.filter((p) => included.has(p)) : [],
+      spouseIds: childIds.has(m.id) ? [] : m.spouseIds.filter((s) => included.has(s) && !childIds.has(s)),
+    }))
+}
+
 export function selectMembersForChart(members: Member[], chartType: ChartType, rootId: string | null): Member[] {
   if (!rootId) return members
   switch (chartType) {
     case 'descendant':
       return selectDescendantMembers(members, rootId)
+    case 'familyGroup':
+      return selectFamilyGroupMembers(members, rootId)
     case 'pedigree':
       return selectPedigreeMembers(members, rootId)
     default:
