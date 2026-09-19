@@ -3,7 +3,7 @@ import type { Member } from '../types/models'
 export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass'
 
 /** Chart types that can currently be chosen. The rest are listed in the selector as "coming soon". */
-export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup']
+export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'hourglass']
 
 export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass']
 
@@ -130,6 +130,26 @@ export function selectFamilyGroupMembers(members: Member[], rootId: string): Mem
     }))
 }
 
+/**
+ * An hourglass: the root's ancestors above them and their descendants (with spouses) below,
+ * i.e. the union of the pedigree and descendant selections. The root's spouse is included
+ * through the descendant side; siblings and other relatives stay out.
+ */
+export function selectHourglassMembers(members: Member[], rootId: string): Member[] {
+  if (!members.some((m) => m.id === rootId)) return members
+  const included = new Set([
+    ...selectPedigreeMembers(members, rootId).map((m) => m.id),
+    ...selectDescendantMembers(members, rootId).map((m) => m.id),
+  ])
+  return members
+    .filter((m) => included.has(m.id))
+    .map((m) => ({
+      ...m,
+      parentIds: m.parentIds.filter((p) => included.has(p)),
+      spouseIds: m.spouseIds.filter((s) => included.has(s)),
+    }))
+}
+
 export function selectMembersForChart(members: Member[], chartType: ChartType, rootId: string | null): Member[] {
   if (!rootId) return members
   switch (chartType) {
@@ -139,6 +159,8 @@ export function selectMembersForChart(members: Member[], chartType: ChartType, r
       return selectFamilyGroupMembers(members, rootId)
     case 'pedigree':
       return selectPedigreeMembers(members, rootId)
+    case 'hourglass':
+      return selectHourglassMembers(members, rootId)
     default:
       return members
   }
