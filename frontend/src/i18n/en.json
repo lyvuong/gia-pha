@@ -66,7 +66,26 @@
       "hourglass": {
         "shows": "The selected person's ancestors above them, and their children, grandchildren and further descendants below, with spouses.",
         "hides": "Siblings, aunts, uncles and cousins, and the parents of spouses who married in."
+      },
+      "kinship": {
+        "shows": "The selected person, a second person you choose, and the chain of ancestors joining them through their closest common ancestor. The relationship is spelled out above the chart, using Vietnamese terms (bác, chú, cô, dì, cậu, cháu nội, ...) when the app is in Vietnamese.",
+        "hides": "Everyone else: siblings and other relatives who are not part of the connection."
       }
+    },
+    "chart_kinship": "Kinship",
+    "kinshipRelateTo": "Relate to…",
+    "kinshipSwap": "Swap the two people",
+    "kinshipClear": "Choose someone else",
+    "kinship": {
+      "hint": "Choose a second person to see how they are related to {{name}}.",
+      "self": "{{a}} and {{b}} are the same person.",
+      "spouse": "{{b}} is {{a}}’s spouse.",
+      "blood": "{{b}} is {{a}}’s {{relation}}.",
+      "marriageB": "{{b}} is married to {{via}}, {{a}}’s {{relation}}.",
+      "marriageA": "{{b}} is the {{relation}} of {{via}}, {{a}}’s spouse.",
+      "none": "No family connection was found between {{a}} and {{b}}.",
+      "commonAncestor": "Closest common ancestor: {{names}}",
+      "steps": "Generations up to that ancestor: {{a}} {{stepsA}}, {{b}} {{stepsB}}"
     }
   },
   "member": {

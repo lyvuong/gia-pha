@@ -12,11 +12,13 @@ import { MemberDetailPanel } from '../components/member/MemberDetailPanel'
 import { MemberEditForm } from '../components/member/MemberEditForm'
 import { TrashPanel } from '../components/member/TrashPanel'
 import { PdfExportButton } from '../components/pdf/PdfExportButton'
+import { KinshipSummary } from '../components/tree/KinshipSummary'
 import { TreeView } from '../components/tree/TreeView'
 import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
 import { setEditorProfile, useEditorProfiles } from '../hooks/useEditorProfiles'
 import { useMembers } from '../hooks/useMembers'
+import { findKinship } from '../lib/kinship'
 import {
   AVAILABLE_CHART_TYPES,
   CHART_TYPE_OPTIONS,
@@ -39,6 +41,7 @@ export function TreePage() {
   const [rootMemberId, setRootMemberId] = useState<string | null>(null)
   const [chartType, setChartType] = useState<ChartType>('full')
   const [extendedReach, setExtendedReach] = useState(DEFAULT_EXTENDED_REACH)
+  const [kinshipTargetId, setKinshipTargetId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [showingTrash, setShowingTrash] = useState(false)
   const [editingName, setEditingName] = useState(false)
@@ -62,10 +65,17 @@ export function TreePage() {
 
   // The root is dropped if the person is deleted while being viewed.
   const rootId = rootMemberId && members.some((m) => m.id === rootMemberId) ? rootMemberId : null
-  const chartMembers = useMemo(
-    () => selectMembersForChart(members, rootId ? chartType : 'full', rootId, extendedReach),
-    [members, chartType, rootId, extendedReach],
+  const targetId = kinshipTargetId && members.some((m) => m.id === kinshipTargetId) ? kinshipTargetId : null
+  const kinship = useMemo(
+    () => (chartType === 'kinship' && rootId && targetId ? findKinship(members, rootId, targetId) : null),
+    [members, chartType, rootId, targetId],
   )
+  const chartMembers = useMemo(
+    () => selectMembersForChart(members, rootId ? chartType : 'full', rootId, { extendedReach, kinship }),
+    [members, chartType, rootId, extendedReach, kinship],
+  )
+  const rootMember = rootId ? members.find((m) => m.id === rootId) ?? null : null
+  const targetMember = targetId ? members.find((m) => m.id === targetId) ?? null : null
 
   function showChartFor(id: string, type: ChartType = 'pedigree') {
     setRootMemberId(id)
@@ -165,6 +175,42 @@ export function TreePage() {
                 </button>
               </div>
             )}
+            {chartType === 'kinship' && (
+              <div className="kinship-picker">
+                {targetMember ? (
+                  <>
+                    <span className="kinship-target">{targetMember.fullName}</span>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title={t('tree.kinshipSwap')}
+                      aria-label={t('tree.kinshipSwap')}
+                      onClick={() => {
+                        setRootMemberId(targetMember.id)
+                        setKinshipTargetId(rootId)
+                      }}
+                    >
+                      ⇄
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      title={t('tree.kinshipClear')}
+                      aria-label={t('tree.kinshipClear')}
+                      onClick={() => setKinshipTargetId(null)}
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <SearchBar
+                    members={members}
+                    placeholder={t('tree.kinshipRelateTo')}
+                    onSelectMember={(m) => setKinshipTargetId(m.id)}
+                  />
+                )}
+              </div>
+            )}
             <ChartInfo chartType={chartType} />
             <button type="button" className="icon-button" onClick={showFullTree}>
               <span className="btn-label">{t('tree.showFullTree')}</span>
@@ -207,12 +253,15 @@ export function TreePage() {
       </header>
 
       <div className="tree-page-body">
+        {chartType === 'kinship' && rootMember && (
+          <KinshipSummary members={members} root={rootMember} target={targetMember} kinship={kinship} />
+        )}
         <TreeView
           members={chartMembers}
           chartType={rootId ? chartType : 'full'}
           rootId={rootId}
           selectedMemberId={selectedMember?.id ?? null}
-          viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}:${chartType === 'extended' ? extendedReach : ''}`}
+          viewKey={`${rootId ?? ''}:${rootId ? chartType : 'full'}:${chartType === 'extended' ? extendedReach : ''}:${chartType === 'kinship' ? targetId ?? '' : ''}`}
           onSelectMember={(m) => {
             setShowingTrash(false)
             setSelectedMember(m)

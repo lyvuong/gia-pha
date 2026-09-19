@@ -1,11 +1,12 @@
 import type { Member } from '../types/models'
+import type { Kinship } from './kinship'
 
-export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass' | 'extended'
+export type ChartType = 'full' | 'descendant' | 'pedigree' | 'familyGroup' | 'fan' | 'hourglass' | 'extended' | 'kinship'
 
 /** Chart types that can currently be chosen. The rest are listed in the selector as "coming soon". */
-export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'fan', 'hourglass', 'extended']
+export const AVAILABLE_CHART_TYPES: ChartType[] = ['descendant', 'pedigree', 'familyGroup', 'fan', 'hourglass', 'extended', 'kinship']
 
-export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass', 'extended']
+export const CHART_TYPE_OPTIONS: ChartType[] = ['pedigree', 'descendant', 'familyGroup', 'fan', 'hourglass', 'extended', 'kinship']
 
 /**
  * The root, all of their descendants, and every spouse of those people. Spouses' own
@@ -193,11 +194,31 @@ export function selectExtendedFamilyMembers(members: Member[], rootId: string, r
     }))
 }
 
+/**
+ * The people who connect `rootId` to the second person of a kinship chart (see `findKinship`);
+ * just the root until a second person is chosen.
+ */
+export function selectKinshipMembers(members: Member[], rootId: string, kinship: Kinship | null): Member[] {
+  const included = new Set(kinship?.memberIds ?? [rootId])
+  return members
+    .filter((m) => included.has(m.id))
+    .map((m) => ({
+      ...m,
+      parentIds: m.parentIds.filter((p) => included.has(p)),
+      spouseIds: m.spouseIds.filter((s) => included.has(s)),
+    }))
+}
+
+export interface ChartOptions {
+  extendedReach?: number
+  kinship?: Kinship | null
+}
+
 export function selectMembersForChart(
   members: Member[],
   chartType: ChartType,
   rootId: string | null,
-  extendedReach = DEFAULT_EXTENDED_REACH,
+  { extendedReach = DEFAULT_EXTENDED_REACH, kinship = null }: ChartOptions = {},
 ): Member[] {
   if (!rootId) return members
   switch (chartType) {
@@ -214,6 +235,8 @@ export function selectMembersForChart(
       return selectHourglassMembers(members, rootId)
     case 'extended':
       return selectExtendedFamilyMembers(members, rootId, extendedReach)
+    case 'kinship':
+      return selectKinshipMembers(members, rootId, kinship)
     default:
       return members
   }

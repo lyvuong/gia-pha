@@ -66,7 +66,26 @@
       "hourglass": {
         "shows": "Tổ tiên của người được chọn ở phía trên, con cháu các đời ở phía dưới, cùng vợ/chồng.",
         "hides": "Anh chị em, cô dì chú bác, anh chị em họ, và cha mẹ của những người về làm dâu/rể."
+      },
+      "kinship": {
+        "shows": "Người được chọn, người thứ hai bạn chọn, và chuỗi tổ tiên nối hai người qua tổ tiên chung gần nhất. Mối quan hệ được ghi rõ phía trên biểu đồ, dùng cách gọi Việt Nam (bác, chú, cô, dì, cậu, cháu nội, ...) khi ứng dụng ở tiếng Việt.",
+        "hides": "Tất cả những người khác: anh chị em và họ hàng không nằm trong mối liên hệ."
       }
+    },
+    "chart_kinship": "Quan hệ họ hàng",
+    "kinshipRelateTo": "Xem quan hệ với…",
+    "kinshipSwap": "Đổi chỗ hai người",
+    "kinshipClear": "Chọn người khác",
+    "kinship": {
+      "hint": "Chọn người thứ hai để xem quan hệ họ hàng với {{name}}.",
+      "self": "{{a}} và {{b}} là cùng một người.",
+      "spouse": "{{b}} là vợ/chồng của {{a}}.",
+      "blood": "{{b}} là {{relation}} của {{a}}.",
+      "marriageB": "{{b}} là vợ/chồng của {{via}}, {{relation}} của {{a}}.",
+      "marriageA": "{{b}} là {{relation}} của {{via}}, vợ/chồng của {{a}}.",
+      "none": "Không tìm thấy quan hệ họ hàng giữa {{a}} và {{b}}.",
+      "commonAncestor": "Tổ tiên chung gần nhất: {{names}}",
+      "steps": "Số đời lên đến tổ tiên đó: {{a}} {{stepsA}}, {{b}} {{stepsB}}"
     }
   },
   "member": {

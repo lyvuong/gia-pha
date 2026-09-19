@@ -7,9 +7,10 @@ import { SearchIcon } from './icons'
 interface SearchBarProps {
   members: Member[]
   onSelectMember: (member: Member) => void
+  placeholder?: string
 }
 
-export function SearchBar({ members, onSelectMember }: SearchBarProps) {
+export function SearchBar({ members, onSelectMember, placeholder }: SearchBarProps) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
 
@@ -26,7 +27,7 @@ export function SearchBar({ members, onSelectMember }: SearchBarProps) {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('tree.search')}
+        placeholder={placeholder ?? t('tree.search')}
       />
       {results.length > 0 && (
         <ul className="search-results">
