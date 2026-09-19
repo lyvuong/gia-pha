@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { AddMemberIcon, TrashIcon } from '../components/common/icons'
 import { ChartInfo } from '../components/common/ChartInfo'
 import { LanguageToggle } from '../components/common/LanguageToggle'
@@ -32,7 +32,7 @@ import type { Member } from '../types/models'
 export function TreePage() {
   const { t } = useTranslation()
   const { giaPhaId } = useParams<{ giaPhaId: string }>()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { giaPha, loading: giaPhaLoading } = useGiaPha(giaPhaId)
   const { members, deletedMembers, loading: membersLoading } = useMembers(giaPhaId)
   const editorNames = useEditorProfiles(giaPhaId)
@@ -87,7 +87,9 @@ export function TreePage() {
     setChartType('full')
   }
 
-  if (giaPhaLoading || membersLoading) return <p className="page-status">{t('common.loading')}</p>
+  // Signed out (or never signed in): the login page is served at "/".
+  if (!authLoading && !user) return <Navigate to="/" replace />
+  if (authLoading || giaPhaLoading || membersLoading) return <p className="page-status">{t('common.loading')}</p>
   if (!giaPha || !user) return null
 
   const isMember = giaPha.editors.includes(user.uid) || giaPha.ownerUid === user.uid

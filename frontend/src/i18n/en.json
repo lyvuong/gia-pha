@@ -10,7 +10,9 @@
     "sendCode": "Send code",
     "verificationCodePlaceholder": "Verification code",
     "verifyCode": "Verify",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "phoneHint": "Include your country code, e.g. +1 703 217 7712 or +84 912 345 678.",
+    "invalidPhone": "Enter your phone number with its country code, e.g. +1 703 217 7712."
   },
   "tree": {
     "title": "Family Tree",

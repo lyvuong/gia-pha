@@ -5,6 +5,7 @@ import { Logo } from '../components/common/Logo'
 import { ThemeToggle } from '../components/common/ThemeToggle'
 import { useAuth } from '../context/AuthProvider'
 import { useTheme } from '../hooks/useTheme'
+import { normalizePhoneNumber } from '../lib/phone'
 
 const RECAPTCHA_CONTAINER_ID = 'recaptcha-container'
 
@@ -21,9 +22,15 @@ export function LoginPage() {
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    // Firebase only accepts international format ("+1703..."), so complete what was typed.
+    const e164 = normalizePhoneNumber(phoneNumber)
+    if (!e164) {
+      setError(t('auth.invalidPhone'))
+      return
+    }
     setBusy(true)
     try {
-      const result = await signInWithPhone(phoneNumber, RECAPTCHA_CONTAINER_ID)
+      const result = await signInWithPhone(e164, RECAPTCHA_CONTAINER_ID)
       setConfirmation(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -77,6 +84,7 @@ export function LoginPage() {
               required
             />
             <button type="submit" disabled={busy}>{t('auth.sendCode')}</button>
+            <p className="phone-hint">{t('auth.phoneHint')}</p>
           </form>
         ) : (
           <form onSubmit={handleVerifyCode}>

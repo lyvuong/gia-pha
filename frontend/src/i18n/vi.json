@@ -10,7 +10,9 @@
     "sendCode": "Gửi mã",
     "verificationCodePlaceholder": "Mã xác nhận",
     "verifyCode": "Xác nhận",
-    "signOut": "Đăng xuất"
+    "signOut": "Đăng xuất",
+    "phoneHint": "Nhập kèm mã quốc gia, ví dụ +84 912 345 678 hoặc +1 703 217 7712.",
+    "invalidPhone": "Vui lòng nhập số điện thoại kèm mã quốc gia, ví dụ +84 912 345 678."
   },
   "tree": {
     "title": "Cây gia phả",

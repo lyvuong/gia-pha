@@ -1006,3 +1006,10 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* Phone sign-in hint */
+.phone-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
