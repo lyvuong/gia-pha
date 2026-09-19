@@ -7,7 +7,7 @@ import { setEditorProfile } from '../hooks/useEditorProfiles'
 
 export function CreateTreePage() {
   const { t } = useTranslation()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -38,6 +38,9 @@ export function CreateTreePage() {
         />
         <button type="submit" disabled={creating}>{t('tree.createButton')}</button>
       </form>
+      <button type="button" className="link-button" onClick={() => void signOut()}>
+        {t('auth.signOut')}
+      </button>
     </div>
   )
 }
