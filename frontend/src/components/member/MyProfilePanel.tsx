@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SearchBar } from '../common/SearchBar'
-import { linkProfileToMember } from '../../hooks/useEditorProfiles'
+import { linkProfileToMember, type SignInKind } from '../../hooks/useEditorProfiles'
 import { normalizeVietnamese } from '../../lib/normalizeVietnamese'
 import { addMember } from '../../hooks/useMembers'
 import type { Member, NewMember } from '../../types/models'
@@ -9,8 +9,9 @@ import type { Member, NewMember } from '../../types/models'
 interface MyProfilePanelProps {
   giaPhaId: string
   currentUid: string
+  signInKind: SignInKind
   members: Member[]
-  /** Members already claimed by someone else, who can't be picked again. */
+  /** People already claimed by another account of the same sign-in kind, who can't be picked again. */
   takenMemberIds: Set<string>
   /** Pre-fills the name box, e.g. the display name from sign-in. */
   defaultName: string
@@ -46,7 +47,7 @@ function blankMember(fullName: string): NewMember {
  * already in the tree, or types their full name to be added as a new person. Either way their
  * account is linked to that profile, which they can then edit.
  */
-export function MyProfilePanel({ giaPhaId, currentUid, members, takenMemberIds, defaultName, onLinked, onClose }: MyProfilePanelProps) {
+export function MyProfilePanel({ giaPhaId, currentUid, signInKind, members, takenMemberIds, defaultName, onLinked, onClose }: MyProfilePanelProps) {
   const { t } = useTranslation()
   const available = useMemo(() => members.filter((m) => !takenMemberIds.has(m.id)), [members, takenMemberIds])
   // A sign-in name (e.g. from Google) that matches exactly one unclaimed person is offered as the answer.
@@ -66,7 +67,7 @@ export function MyProfilePanel({ giaPhaId, currentUid, members, takenMemberIds, 
     setBusy(true)
     try {
       const memberId = await getMemberId()
-      await linkProfileToMember(giaPhaId, currentUid, memberId)
+      await linkProfileToMember(giaPhaId, currentUid, memberId, signInKind)
       onLinked(memberId)
     } catch {
       setFailed(true)

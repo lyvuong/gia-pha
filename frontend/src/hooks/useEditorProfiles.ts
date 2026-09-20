@@ -34,13 +34,26 @@ export async function setEditorProfile(giaPhaId: string, uid: string, displayNam
   await setDoc(doc(db, 'giaPha', giaPhaId, 'editorProfiles', uid), { displayName }, { merge: true })
 }
 
+/** How someone signs in. A person may have one account of each kind, and both may be the same family member. */
+export type SignInKind = 'phone' | 'google'
+
+export function signInKindOf(user: { phoneNumber: string | null }): SignInKind {
+  return user.phoneNumber ? 'phone' : 'google'
+}
+
+/** `provider` is null on links made before it was recorded; those don't block anyone. */
+export interface ProfileLink {
+  memberId: string
+  provider: SignInKind | null
+}
+
 /**
- * Which family-tree member each signed-in editor says they are, stored as `memberId` on their
- * `editorProfiles/{uid}` doc. `loaded` is false until the first snapshot, so callers don't
- * ask someone who has already answered.
+ * Which family-tree member each signed-in editor says they are, stored as `memberId` (and the
+ * kind of sign-in) on their `editorProfiles/{uid}` doc. `loaded` is false until the first
+ * snapshot, so callers don't ask someone who has already answered.
  */
-export function useProfileLinks(giaPhaId: string | undefined): { links: Record<string, string>; loaded: boolean } {
-  const [state, setState] = useState<{ links: Record<string, string>; loaded: boolean }>({ links: {}, loaded: false })
+export function useProfileLinks(giaPhaId: string | undefined): { links: Record<string, ProfileLink>; loaded: boolean } {
+  const [state, setState] = useState<{ links: Record<string, ProfileLink>; loaded: boolean }>({ links: {}, loaded: false })
 
   useEffect(() => {
     if (!giaPhaId) {
@@ -50,10 +63,12 @@ export function useProfileLinks(giaPhaId: string | undefined): { links: Record<s
     const unsubscribe = onSnapshot(
       collection(db, 'giaPha', giaPhaId, 'editorProfiles'),
       (snap) => {
-        const links: Record<string, string> = {}
+        const links: Record<string, ProfileLink> = {}
         for (const d of snap.docs) {
-          const memberId = d.data().memberId
-          if (typeof memberId === 'string' && memberId) links[d.id] = memberId
+          const { memberId, provider } = d.data()
+          if (typeof memberId === 'string' && memberId) {
+            links[d.id] = { memberId, provider: provider === 'phone' || provider === 'google' ? provider : null }
+          }
         }
         setState({ links, loaded: true })
       },
@@ -65,6 +80,6 @@ export function useProfileLinks(giaPhaId: string | undefined): { links: Record<s
   return state
 }
 
-export async function linkProfileToMember(giaPhaId: string, uid: string, memberId: string): Promise<void> {
-  await setDoc(doc(db, 'giaPha', giaPhaId, 'editorProfiles', uid), { memberId }, { merge: true })
+export async function linkProfileToMember(giaPhaId: string, uid: string, memberId: string, provider: SignInKind): Promise<void> {
+  await setDoc(doc(db, 'giaPha', giaPhaId, 'editorProfiles', uid), { memberId, provider }, { merge: true })
 }

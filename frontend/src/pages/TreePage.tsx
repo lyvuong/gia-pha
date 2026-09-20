@@ -19,7 +19,7 @@ import { KinshipSummary } from '../components/tree/KinshipSummary'
 import { TreeView } from '../components/tree/TreeView'
 import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
-import { setEditorProfile, useEditorProfiles, useProfileLinks } from '../hooks/useEditorProfiles'
+import { setEditorProfile, linkProfileToMember, signInKindOf, useEditorProfiles, useProfileLinks } from '../hooks/useEditorProfiles'
 import { usePendingJoinRequests } from '../hooks/useJoinRequests'
 import { useMembers } from '../hooks/useMembers'
 import { findKinship } from '../lib/kinship'
@@ -75,6 +75,15 @@ export function TreePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members])
 
+  // Links made before the sign-in kind was recorded get it filled in the next time that person visits.
+  const myLink = user ? profileLinks[user.uid] : undefined
+  useEffect(() => {
+    if (giaPha && user && myLink && !myLink.provider) {
+      void linkProfileToMember(giaPha.id, user.uid, myLink.memberId, signInKindOf(user))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giaPha?.id, user?.uid, myLink?.memberId, myLink?.provider])
+
   // After picking or adding themselves, open that profile once it has arrived in the members list.
   useEffect(() => {
     if (!pendingSelectId) return
@@ -118,12 +127,18 @@ export function TreePage() {
   if (!isMember) return <p className="page-status">{t('join.notFound')}</p>
 
   // Which family member this signed-in person is (if they've said, and that person still exists).
-  const myMember = members.find((m) => m.id === profileLinks[user.uid]) ?? null
-  const takenMemberIds = new Set(Object.entries(profileLinks).filter(([uid]) => uid !== user.uid).map(([, id]) => id))
+  const myMember = members.find((m) => m.id === profileLinks[user.uid]?.memberId) ?? null
+  // A Google and a phone account may be the same person, but two accounts of one kind may not.
+  const myKind = signInKindOf(user)
+  const takenMemberIds = new Set(
+    Object.entries(profileLinks)
+      .filter(([uid, link]) => uid !== user.uid && link.provider === myKind)
+      .map(([, link]) => link.memberId),
+  )
   // Someone who has said who they are is shown by that person's name, not their phone number.
   const nameByUid: Record<string, string> = { ...editorNames }
-  for (const [uid, memberId] of Object.entries(profileLinks)) {
-    const linked = members.find((m) => m.id === memberId)
+  for (const [uid, link] of Object.entries(profileLinks)) {
+    const linked = members.find((m) => m.id === link.memberId)
     if (linked) nameByUid[uid] = linked.fullName
   }
   const showProfilePicker = showingProfilePicker || (profileLinksLoaded && !myMember && !profilePromptDismissed)
@@ -364,6 +379,7 @@ export function TreePage() {
           <MyProfilePanel
             giaPhaId={giaPha.id}
             currentUid={user.uid}
+            signInKind={myKind}
             members={members}
             takenMemberIds={takenMemberIds}
             defaultName={user.displayName ?? ''}

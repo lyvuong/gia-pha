@@ -4,6 +4,22 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    // Vendor code is split out so app changes don't re-download it, and so each chunk stays small.
+    // The PDF export chunk (jsPDF + its fonts) is still large, but it loads only when someone
+    // clicks Export, so the limit is raised just above it rather than the warning being ignored.
+    chunkSizeWarningLimit: 1600,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'firebase', test: /node_modules[\/](@firebase|firebase)[\/]/ },
+            { name: 'flow', test: /node_modules[\/](@xyflow|d3-[^\/]+|zustand)[\/]/ },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
