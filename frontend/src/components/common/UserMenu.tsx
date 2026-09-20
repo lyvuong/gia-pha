@@ -11,10 +11,12 @@ interface UserMenuProps {
   onOpenTrash?: () => void
   /** When given, the menu offers the signed-in person's own profile (or asks who they are). */
   onOpenProfile?: () => void
+  /** The name to show instead of the sign-in name (e.g. the tree profile the person linked to). */
+  displayName?: string
   trashCount?: number
 }
 
-export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, trashCount = 0 }: UserMenuProps) {
+export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, displayName, trashCount = 0 }: UserMenuProps) {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
@@ -51,7 +53,7 @@ export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, trashCount = 
     }
   }
 
-  const name = user.displayName ?? user.phoneNumber ?? user.email ?? ''
+  const name = displayName || (user.displayName ?? user.phoneNumber ?? user.email ?? '')
 
   return (
     <div className="user-menu" ref={ref}>

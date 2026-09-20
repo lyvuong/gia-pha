@@ -120,6 +120,12 @@ export function TreePage() {
   // Which family member this signed-in person is (if they've said, and that person still exists).
   const myMember = members.find((m) => m.id === profileLinks[user.uid]) ?? null
   const takenMemberIds = new Set(Object.entries(profileLinks).filter(([uid]) => uid !== user.uid).map(([, id]) => id))
+  // Someone who has said who they are is shown by that person's name, not their phone number.
+  const nameByUid: Record<string, string> = { ...editorNames }
+  for (const [uid, memberId] of Object.entries(profileLinks)) {
+    const linked = members.find((m) => m.id === memberId)
+    if (linked) nameByUid[uid] = linked.fullName
+  }
   const showProfilePicker = showingProfilePicker || (profileLinksLoaded && !myMember && !profilePromptDismissed)
 
   function openMyProfile() {
@@ -311,6 +317,7 @@ export function TreePage() {
         <UserMenu
           inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined}
           trashCount={deletedMembers.length}
+          displayName={myMember?.fullName}
           onOpenProfile={openMyProfile}
           onOpenTrash={() => {
             setSelectedMember(null)
@@ -377,7 +384,7 @@ export function TreePage() {
             member={selectedMember}
             members={members}
             currentUid={user.uid}
-            editorNames={editorNames}
+            editorNames={nameByUid}
             onClose={() => setSelectedMember(null)}
             onDeleted={() => setSelectedMember(null)}
             onViewPedigree={() => showChartFor(selectedMember.id, 'pedigree')}

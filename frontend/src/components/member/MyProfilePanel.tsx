@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SearchBar } from '../common/SearchBar'
 import { linkProfileToMember } from '../../hooks/useEditorProfiles'
+import { normalizeVietnamese } from '../../lib/normalizeVietnamese'
 import { addMember } from '../../hooks/useMembers'
 import type { Member, NewMember } from '../../types/models'
 
@@ -47,12 +48,18 @@ function blankMember(fullName: string): NewMember {
  */
 export function MyProfilePanel({ giaPhaId, currentUid, members, takenMemberIds, defaultName, onLinked, onClose }: MyProfilePanelProps) {
   const { t } = useTranslation()
-  const [picked, setPicked] = useState<Member | null>(null)
+  const available = useMemo(() => members.filter((m) => !takenMemberIds.has(m.id)), [members, takenMemberIds])
+  // A sign-in name (e.g. from Google) that matches exactly one unclaimed person is offered as the answer.
+  const suggestion = useMemo(() => {
+    const key = normalizeVietnamese(defaultName.trim())
+    if (!key) return null
+    const matches = available.filter((m) => normalizeVietnamese(m.fullName.trim()) === key)
+    return matches.length === 1 ? matches[0] : null
+  }, [available, defaultName])
+  const [picked, setPicked] = useState<Member | null>(suggestion)
   const [fullName, setFullName] = useState(defaultName)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-
-  const available = useMemo(() => members.filter((m) => !takenMemberIds.has(m.id)), [members, takenMemberIds])
 
   async function run(getMemberId: () => Promise<string>) {
     setFailed(false)
@@ -77,6 +84,7 @@ export function MyProfilePanel({ giaPhaId, currentUid, members, takenMemberIds, 
       {available.length > 0 && (
         <section>
           <h3>{t('profile.pickHeading')}</h3>
+          {picked && picked.id === suggestion?.id && <p>{t('profile.suggested')}</p>}
           {picked ? (
             <p>
               <strong>{picked.fullName}</strong>{' '}
