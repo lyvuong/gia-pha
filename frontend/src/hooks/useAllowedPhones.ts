@@ -47,13 +47,20 @@ export async function removeAllowedPhone(giaPhaId: string, phone: string): Promi
  * allowlist. Returns false when it isn't (the rules reject the write), so the caller can fall
  * back to asking for approval.
  */
-export async function joinWithAllowedPhone(giaPhaId: string, uid: string): Promise<boolean> {
+export async function joinWithAllowedPhone(giaPhaId: string, uid: string, phone: string): Promise<boolean> {
   try {
     await updateDoc(doc(db, 'giaPha', giaPhaId), { editors: arrayUnion(uid) })
-    return true
   } catch {
     return false
   }
+  // The invitation has been used: now a member, they may clear their own entry from the list.
+  // A failure here is harmless (the entry just lingers), so it doesn't undo the join.
+  try {
+    await removeAllowedPhone(giaPhaId, phone)
+  } catch {
+    // ignore
+  }
+  return true
 }
 
 /** Adds many numbers at once (batches stay under Firestore's 500-write limit). */

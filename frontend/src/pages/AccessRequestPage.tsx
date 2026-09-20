@@ -33,21 +33,21 @@ export function AccessRequestPage({ giaPhaId }: AccessRequestPageProps) {
   // through to the request form below.
   const [autoJoin, setAutoJoin] = useState<'checking' | 'no'>(user?.phoneNumber ? 'checking' : 'no')
   const uid = user?.uid
-  const hasPhone = !!user?.phoneNumber
+  const phone = user?.phoneNumber ?? null
   useEffect(() => {
-    if (!uid || !hasPhone) {
+    if (!uid || !phone) {
       setAutoJoin('no')
       return
     }
     let cancelled = false
-    void joinWithAllowedPhone(giaPhaId, uid).then((joined) => {
+    void joinWithAllowedPhone(giaPhaId, uid, phone).then((joined) => {
       // On success the parent sees the new membership and navigates into the tree.
       if (!cancelled && !joined) setAutoJoin('no')
     })
     return () => {
       cancelled = true
     }
-  }, [giaPhaId, uid, hasPhone])
+  }, [giaPhaId, uid, phone])
 
   if (loading || autoJoin === 'checking') return <p className="page-status">{t('common.loading')}</p>
 
