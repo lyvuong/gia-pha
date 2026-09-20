@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { addAllowedPhone, addAllowedPhones, removeAllowedPhone, useAllowedPhones } from '../../hooks/useAllowedPhones'
+import { TrashIcon } from '../common/icons'
 import { normalizePhoneNumber, parsePhoneList } from '../../lib/phone'
 
 interface AllowedPhonesPanelProps {
@@ -107,7 +108,15 @@ export function AllowedPhonesPanel({ giaPhaId, currentUid, onClose }: AllowedPho
                 {p.label && <span className="trash-row-date"> · {p.label}</span>}
               </span>
               <div className="trash-row-actions">
-                <button type="button" onClick={() => remove(p.phone)}>{t('tree.allowedRemove')}</button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  title={t('tree.allowedRemove')}
+                  aria-label={t('tree.allowedRemove')}
+                  onClick={() => remove(p.phone)}
+                >
+                  <TrashIcon size={15} />
+                </button>
               </div>
             </li>
           ))}

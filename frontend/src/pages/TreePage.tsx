@@ -311,21 +311,6 @@ export function TreePage() {
             <span className="btn-label">{t('tree.requests')} ({joinRequests.length})</span>
           </button>
         )}
-        <button
-          type="button"
-          className="icon-button"
-          onClick={() => {
-            setSelectedMember(null)
-            setAdding(false)
-            setShowingTrash(false)
-            setShowingRequests(false)
-            setShowingAllowed(true)
-          }}
-          title={t('tree.allowedTitle')}
-        >
-          <AddMemberIcon size={15} />
-          <span className="btn-label">{t('tree.allowedButton')}</span>
-        </button>
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />
@@ -334,6 +319,14 @@ export function TreePage() {
           trashCount={deletedMembers.length}
           displayName={myMember?.fullName}
           onOpenProfile={openMyProfile}
+          onOpenInviteByPhone={() => {
+            setSelectedMember(null)
+            setAdding(false)
+            setShowingTrash(false)
+            setShowingRequests(false)
+            setShowingProfilePicker(false)
+            setShowingAllowed(true)
+          }}
           onOpenTrash={() => {
             setSelectedMember(null)
             setAdding(false)

@@ -11,12 +11,14 @@ interface UserMenuProps {
   onOpenTrash?: () => void
   /** When given, the menu offers the signed-in person's own profile (or asks who they are). */
   onOpenProfile?: () => void
+  /** When given, the menu offers managing the phone numbers that may join without approval. */
+  onOpenInviteByPhone?: () => void
   /** The name to show instead of the sign-in name (e.g. the tree profile the person linked to). */
   displayName?: string
   trashCount?: number
 }
 
-export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, displayName, trashCount = 0 }: UserMenuProps) {
+export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, onOpenInviteByPhone, displayName, trashCount = 0 }: UserMenuProps) {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
@@ -90,6 +92,19 @@ export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, displayName, 
               }}
             >
               {t('profile.menu')}
+            </button>
+          )}
+          {onOpenInviteByPhone && (
+            <button
+              type="button"
+              role="menuitem"
+              className="user-menu-item"
+              onClick={() => {
+                setOpen(false)
+                onOpenInviteByPhone()
+              }}
+            >
+              {t('tree.allowedButton')}
             </button>
           )}
           {onOpenTrash && (
