@@ -70,13 +70,23 @@ export function AboutPage() {
 
       <section className="about-card">
         <h2>{t('about.developerTitle')}</h2>
-        <p>
-          <strong>Ly Vuong</strong> — {t('about.developerRole')}
-        </p>
-        <p>{t('about.builtWith')}</p>
-        <p>
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">{t('about.github')}</a>
-        </p>
+        <div className="about-developer">
+          <div className="about-avatar">
+            <img
+              src="/avatar.png"
+              alt="Ly Vuong"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          </div>
+          <div className="about-developer-info">
+            <h3>Ly Vuong</h3>
+            <p className="about-developer-role">{t('about.developerRole')}</p>
+            <p>{t('about.builtWith')}</p>
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">{t('about.github')}</a>
+          </div>
+        </div>
       </section>
 
       <section className="about-card">

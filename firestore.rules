@@ -48,6 +48,13 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/giaPha/$(giaPhaId)/allowedPhones/$(request.auth.token.phone_number))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
           && request.resource.data.editors.size() == resource.data.editors.size() + 1
+          && request.resource.data.editors == resource.data.editors.concat([request.auth.uid])) ||
+        // Likewise for a relative whose Google-verified email a member has put on `allowedEmails`.
+        (request.auth.token.email != null
+          && request.auth.token.email_verified == true
+          && exists(/databases/$(database)/documents/giaPha/$(giaPhaId)/allowedEmails/$(request.auth.token.email.lower()))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
+          && request.resource.data.editors.size() == resource.data.editors.size() + 1
           && request.resource.data.editors == resource.data.editors.concat([request.auth.uid]))
       );
 
@@ -112,6 +119,11 @@ service cloud.firestore {
       // Phone numbers (E.164 doc ids) of known relatives who may join without approval.
       // Members manage the list; the rule on `giaPha` update checks it with exists().
       match /allowedPhones/{phone} {
+        allow read, create, update, delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
+      }
+
+      // Google emails (lower-case doc ids) of known relatives who may join without approval.
+      match /allowedEmails/{email} {
         allow read, create, update, delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
       }
 

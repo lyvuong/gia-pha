@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Logo } from '../components/common/Logo'
 import { useAuth } from '../context/AuthProvider'
+import { joinWithAllowedEmail } from '../hooks/useAllowedEmails'
 import { joinWithAllowedPhone } from '../hooks/useAllowedPhones'
 import {
   requestAccess,
@@ -31,23 +32,28 @@ export function AccessRequestPage({ giaPhaId }: AccessRequestPageProps) {
 
   // A relative whose phone number a member has listed joins straight away; anyone else falls
   // through to the request form below.
-  const [autoJoin, setAutoJoin] = useState<'checking' | 'no'>(user?.phoneNumber ? 'checking' : 'no')
+  // The same goes for a Google account whose (verified) email a member has listed.
   const uid = user?.uid
   const phone = user?.phoneNumber ?? null
+  const email = user?.email && user.emailVerified ? user.email : null
+  const [autoJoin, setAutoJoin] = useState<'checking' | 'no'>(phone || email ? 'checking' : 'no')
   useEffect(() => {
-    if (!uid || !phone) {
+    if (!uid || (!phone && !email)) {
       setAutoJoin('no')
       return
     }
     let cancelled = false
-    void joinWithAllowedPhone(giaPhaId, uid, phone).then((joined) => {
+    void (async () => {
+      const joined =
+        (phone ? await joinWithAllowedPhone(giaPhaId, uid, phone) : false) ||
+        (email ? await joinWithAllowedEmail(giaPhaId, uid, email) : false)
       // On success the parent sees the new membership and navigates into the tree.
       if (!cancelled && !joined) setAutoJoin('no')
-    })
+    })()
     return () => {
       cancelled = true
     }
-  }, [giaPhaId, uid, phone])
+  }, [giaPhaId, uid, phone, email])
 
   if (loading || autoJoin === 'checking') return <p className="page-status">{t('common.loading')}</p>
 

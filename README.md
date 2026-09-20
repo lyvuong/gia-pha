@@ -288,6 +288,7 @@ giaPha/{treeId}                      name, ownerUid, inviteCode, editors[], crea
                                      generation, lastEditedBy/At, deletedAt (Trash)
   joinRequests/{uid}                 someone asking to join (details, status)
   allowedPhones/{+E.164 number}      relatives who may join without approval
+  allowedEmails/{lower-case email}   same, for Google sign-in
   editorProfiles/{uid}               display name, linked memberId, sign-in kind
 inviteCodes/{code}                   { giaPhaId, name }: public get-only, for link previews
 ```

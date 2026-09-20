@@ -193,6 +193,7 @@ export function TreePage() {
         )}
         <SearchBar
           members={members}
+          selectedName={rootMember?.fullName}
           onSelectMember={(m) => {
             setShowingTrash(false)
             setShowingRequests(false)
@@ -351,6 +352,7 @@ export function TreePage() {
             setShowingTrash(false)
             setShowingRequests(false)
             setSelectedMember(m)
+            showChartFor(m.id)
           }}
           containerRef={treeContainerRef}
         />
