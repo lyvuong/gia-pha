@@ -1,5 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { AppFooter } from './components/common/AppFooter'
+import { AboutPage } from './pages/AboutPage'
 import { JoinPage } from './pages/JoinPage'
 import { RootPage } from './pages/RootPage'
 
@@ -10,13 +12,19 @@ const TreePage = lazy(() => import('./pages/TreePage').then((m) => ({ default: m
 export function App() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<p className="page-status">…</p>}>
-        <Routes>
-          <Route path="/" element={<RootPage />} />
-          <Route path="/join/:code" element={<JoinPage />} />
-          <Route path="/tree/:giaPhaId" element={<TreePage />} />
-        </Routes>
-      </Suspense>
+      <div className="app-shell">
+        <main className="app-main">
+          <Suspense fallback={<p className="page-status">…</p>}>
+            <Routes>
+              <Route path="/" element={<RootPage />} />
+              <Route path="/join/:code" element={<JoinPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/tree/:giaPhaId" element={<TreePage />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <AppFooter />
+      </div>
     </BrowserRouter>
   )
 }

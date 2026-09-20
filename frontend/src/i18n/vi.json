@@ -241,5 +241,57 @@
     "addMe": "Thêm tôi",
     "menu": "Hồ sơ của tôi",
     "suggested": "Chúng tôi tìm thấy một người trùng tên bạn. Đây có phải bạn không?"
+  },
+  "footer": {
+    "about": "Giới thiệu",
+    "updateAvailable": "Có bản cập nhật"
+  },
+  "about": {
+    "back": "Quay lại gia phả",
+    "tagline": "Gia phả chung cho cả họ: ai là ai, quan hệ họ hàng ra sao, và những câu chuyện của gia đình.",
+    "versionTitle": "Phiên bản",
+    "version": "Phiên bản",
+    "build": "Bản dựng",
+    "buildDate": "Ngày dựng",
+    "checkUpdates": "Kiểm tra cập nhật",
+    "checking": "Đang kiểm tra…",
+    "upToDate": "Bạn đang dùng phiên bản mới nhất.",
+    "updateFound": "Đã có phiên bản mới.",
+    "install": "Cài đặt {{version}} ngay",
+    "checkFailed": "Không kiểm tra được cập nhật. Vui lòng thử lại.",
+    "developerTitle": "Nhà phát triển",
+    "developerRole": "Tác giả & Kỹ sư chính",
+    "github": "Kho mã nguồn GitHub",
+    "howToTitle": "Hướng dẫn sử dụng",
+    "steps": {
+      "signIn": {
+        "title": "Đăng nhập.",
+        "body": "Dùng số điện thoại hoặc tài khoản Google. Nếu người thân đã thêm số điện thoại của bạn, bạn vào gia phả ngay; nếu chưa, hãy gửi một yêu cầu ngắn để thành viên duyệt."
+      },
+      "you": {
+        "title": "Cho biết bạn là ai.",
+        "body": "Chọn tên bạn trong gia phả, hoặc nhập họ tên đầy đủ để được thêm vào. Có thể mở lại từ mục Hồ sơ của tôi trong menu (góc trên bên phải)."
+      },
+      "browse": {
+        "title": "Xem gia phả.",
+        "body": "Kéo để di chuyển, cuộn để phóng to/thu nhỏ. Tìm một người, nhấn vào để xem chi tiết, và chọn loại biểu đồ (tổ tiên, con cháu, quan hệ họ hàng…)."
+      },
+      "edit": {
+        "title": "Thêm và sửa thông tin.",
+        "body": "Dùng Thêm thành viên, hoặc mở một người rồi thêm cha mẹ, vợ/chồng, con hoặc anh chị em. Có thể thêm ảnh, ngày tháng, ghi chú và câu chuyện."
+      },
+      "invite": {
+        "title": "Mời người thân.",
+        "body": "Trong menu, sao chép liên kết mời, hoặc dùng Mời qua số điện thoại để liệt kê số của người thân để họ vào không cần duyệt. Duyệt yêu cầu mới ở nút Yêu cầu."
+      },
+      "trash": {
+        "title": "Hoàn tác khi xóa nhầm.",
+        "body": "Người bị xóa sẽ vào Thùng rác trong menu, nơi bạn có thể khôi phục."
+      },
+      "export": {
+        "title": "In hoặc chia sẻ.",
+        "body": "Xuất PDF tạo bản in của gia phả."
+      }
+    }
   }
 }

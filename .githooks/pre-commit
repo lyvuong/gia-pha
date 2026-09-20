@@ -1,0 +1,5 @@
+#!/bin/sh
+# Automatically bump the minor version in frontend/package.json on every commit.
+# Enabled by `git config core.hooksPath .githooks` (see README).
+node frontend/scripts/bump-version.mjs
+git add frontend/package.json

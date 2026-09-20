@@ -243,5 +243,57 @@
     "addMe": "Add me",
     "menu": "My profile",
     "suggested": "We found someone with your name. Is this you?"
+  },
+  "footer": {
+    "about": "About",
+    "updateAvailable": "Update available"
+  },
+  "about": {
+    "back": "Back to the family tree",
+    "tagline": "A shared family tree for your relatives: who is who, how everyone is related, and the stories of the family.",
+    "versionTitle": "Version",
+    "version": "Version",
+    "build": "Build",
+    "buildDate": "Build date",
+    "checkUpdates": "Check for updates",
+    "checking": "Checking…",
+    "upToDate": "You are on the latest version.",
+    "updateFound": "A newer version is available.",
+    "install": "Install {{version}} now",
+    "checkFailed": "Could not check for updates. Please try again.",
+    "developerTitle": "Developer",
+    "developerRole": "Creator & Lead Engineer",
+    "github": "GitHub repository",
+    "howToTitle": "How to use the app",
+    "steps": {
+      "signIn": {
+        "title": "Sign in.",
+        "body": "Use your phone number or your Google account. If a family member has added your phone number, you are let in straight away; otherwise send a short request and a member will approve it."
+      },
+      "you": {
+        "title": "Say who you are.",
+        "body": "Pick yourself from the tree, or enter your full name to be added. You can open it again from My profile in your menu (top right)."
+      },
+      "browse": {
+        "title": "Explore the tree.",
+        "body": "Drag to move and scroll to zoom. Search for a person, click them to see their details, and choose a chart type (ancestors, descendants, kinship and more)."
+      },
+      "edit": {
+        "title": "Add and edit people.",
+        "body": "Use Add member, or open a person and add their parents, spouse, children or siblings. You can add photos, dates, notes and stories."
+      },
+      "invite": {
+        "title": "Invite relatives.",
+        "body": "In your menu, copy the invite link, or use Invite by phone to list relatives’ phone numbers so they can join without approval. Approve new requests from the Requests button."
+      },
+      "trash": {
+        "title": "Undo a deletion.",
+        "body": "Deleted people go to Trash in your menu, where you can restore them."
+      },
+      "export": {
+        "title": "Print or share.",
+        "body": "Export PDF creates a printable copy of the tree."
+      }
+    }
   }
 }

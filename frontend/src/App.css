@@ -53,7 +53,114 @@
 .tree-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
+}
+
+/* App shell: page content above a slim footer */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-footer {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: var(--color-panel-bg);
+  border-top: 1px solid var(--color-border);
+}
+
+.app-footer a {
+  color: inherit;
+}
+
+.app-footer-update {
+  font-weight: 600;
+  color: var(--color-maroon);
+}
+
+/* About page */
+.about-page {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+  box-sizing: border-box;
+}
+
+.about-back {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--color-text-muted);
+}
+
+.about-card {
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.about-card h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+.about-hero {
+  text-align: center;
+}
+
+.about-hero h1 {
+  margin: 8px 0 4px;
+}
+
+.about-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0 0 12px;
+}
+
+.about-facts dt {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.about-facts dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+}
+
+.about-update {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-steps {
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.about-steps li {
+  margin-bottom: 8px;
 }
 
 .tree-page-header {

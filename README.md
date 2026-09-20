@@ -86,6 +86,18 @@ The join-preview lookup needs no secrets — it reads the public
 `inviteCodes/{code}` Firestore doc over the plain REST API, which
 `firestore.rules` scopes to a `get`-only, `list`-denied public read.
 
+## Versioning and updates
+
+- Every commit bumps the minor version in `frontend/package.json` (1.4.0 → 1.5.0) through
+  the tracked hook in `.githooks/pre-commit`. After cloning, enable it once with
+  `git config core.hooksPath .githooks`.
+- The build stamps the version, date and git commit into the app (`vite.config.ts`) and
+  writes `dist/version.json`. The footer and the About page (`/about`) show them.
+- The app fetches `/version.json` (bypassing caches) to tell whether a newer build is
+  deployed: the footer shows "Update available", and the About page has a
+  **Check for updates** / **Install** button that clears the service worker and caches and
+  reloads.
+
 ## Branding / icons
 
 `frontend/public/icons/` holds only the final, served assets (favicons, apple-touch
