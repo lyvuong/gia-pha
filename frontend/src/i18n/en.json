@@ -19,6 +19,8 @@
   },
   "tree": {
     "title": "Family Tree",
+    "onlineCount": "{{count}} online",
+    "onlineNow": "Online now: {{names}}",
     "renameHint": "Click to rename",
     "addMember": "Add member",
     "exportPdf": "Export PDF",
@@ -118,6 +120,7 @@
     "allowedInvalid": "That doesn't look like a valid phone number or email address. US/Canada numbers need no country code; for other countries include it, e.g. +84 912 345 678."
   },
   "member": {
+    "bioToggle": "Biography — tap to read",
     "fullName": "Full name",
     "gender": "Gender",
     "genderUnspecified": "Unspecified",

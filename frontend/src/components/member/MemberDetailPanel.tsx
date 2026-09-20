@@ -57,6 +57,10 @@ function ReorderControl({ giaPhaId, currentUid, label, group, member }: { giaPha
   )
 }
 
+/** A biography longer than this is tucked into a collapsible box. */
+const LONG_BIO_CHARS = 300
+const LONG_BIO_LINES = 5
+
 export function MemberDetailPanel({ giaPha, member, members, currentUid, editorNames, onClose, onDeleted, onViewPedigree, onViewDescendants }:MemberDetailPanelProps) {
   const { t, i18n } = useTranslation()
   const [editing, setEditing] = useState(false)
@@ -93,6 +97,14 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
 
   // A hand-written biography is Markdown; the auto-generated one is plain text.
   const bio = member.bioOverride || generateBio(member, t)
+  const bioBlock = member.bioOverride ? (
+    <div className="member-bio member-bio-md">
+      <Markdown>{member.bioOverride}</Markdown>
+    </div>
+  ) : (
+    bio && <p className="member-bio">{bio}</p>
+  )
+  const isLongBio = bio.length > LONG_BIO_CHARS || bio.split('\n').length > LONG_BIO_LINES
   const lastEditorName = editorNames[member.lastEditedBy] ?? member.lastEditedBy
 
   // Full siblings, or, when one of `member`'s parents is one of a remarried anchor's
@@ -124,13 +136,16 @@ export function MemberDetailPanel({ giaPha, member, members, currentUid, editorN
         <h2>{member.fullName}</h2>
       </div>
 
-      {member.bioOverride ? (
-        <div className="member-bio member-bio-md">
-          <Markdown>{member.bioOverride}</Markdown>
-        </div>
-      ) : (
-        bio && <p className="member-bio">{bio}</p>
-      )}
+      {bioBlock &&
+        (isLongBio ? (
+          // Collapsed by default; keyed so switching members doesn't carry the open state over.
+          <details key={member.id} className="member-bio-collapsible">
+            <summary>{t('member.bioToggle')}</summary>
+            {bioBlock}
+          </details>
+        ) : (
+          bioBlock
+        ))}
 
       <dl>
         {member.gender && (

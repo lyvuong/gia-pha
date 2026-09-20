@@ -19,6 +19,8 @@
   },
   "tree": {
     "title": "Cây gia phả",
+    "onlineCount": "{{count}} đang online",
+    "onlineNow": "Đang online: {{names}}",
     "renameHint": "Nhấn để đổi tên",
     "addMember": "Thêm thành viên",
     "exportPdf": "Xuất PDF",
@@ -116,6 +118,7 @@
     "allowedInvalid": "Số điện thoại hoặc email không hợp lệ. Số Mỹ/Canada không cần mã quốc gia; nước khác cần ghi kèm mã, ví dụ +84 912 345 678."
   },
   "member": {
+    "bioToggle": "Tiểu sử — nhấn để đọc",
     "fullName": "Họ và tên",
     "gender": "Giới tính",
     "genderUnspecified": "Chưa xác định",

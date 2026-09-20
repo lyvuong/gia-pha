@@ -1244,3 +1244,49 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Members who have the tree open right now */
+.online-members {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.online-members .avatar {
+  border: 2px solid var(--color-maroon);
+  margin-left: -6px;
+}
+
+.online-members .avatar:first-child {
+  margin-left: 0;
+}
+
+.online-more,
+.online-label {
+  font-size: 12px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .online-label {
+    display: none;
+  }
+}
+
+/* Long biographies stay folded until the reader opens them */
+.member-bio-collapsible {
+  margin: 12px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.member-bio-collapsible > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.member-bio-collapsible > .member-bio {
+  margin-bottom: 0;
+}

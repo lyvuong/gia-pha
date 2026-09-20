@@ -7,6 +7,7 @@ import { LanguageToggle } from '../components/common/LanguageToggle'
 import { Logo } from '../components/common/Logo'
 import { SearchBar } from '../components/common/SearchBar'
 import { ThemeToggle } from '../components/common/ThemeToggle'
+import { Avatar } from '../components/common/Avatar'
 import { UserMenu } from '../components/common/UserMenu'
 import { MemberDetailPanel } from '../components/member/MemberDetailPanel'
 import { AllowedPhonesPanel } from '../components/member/AllowedPhonesPanel'
@@ -19,6 +20,7 @@ import { KinshipSummary } from '../components/tree/KinshipSummary'
 import { TreeView } from '../components/tree/TreeView'
 import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
+import { usePresence } from '../hooks/usePresence'
 import { setEditorProfile, linkProfileToMember, signInKindOf, useEditorProfiles, useProfileLinks } from '../hooks/useEditorProfiles'
 import { usePendingJoinRequests } from '../hooks/useJoinRequests'
 import { useMembers } from '../hooks/useMembers'
@@ -40,6 +42,7 @@ export function TreePage() {
   const { giaPha, loading: giaPhaLoading } = useGiaPha(giaPhaId)
   const { members, deletedMembers, loading: membersLoading } = useMembers(giaPhaId)
   const editorNames = useEditorProfiles(giaPhaId)
+  const onlineUids = usePresence(giaPhaId, user?.uid, !!giaPha && !!user && (giaPha.editors.includes(user.uid) || giaPha.ownerUid === user.uid))
   const joinRequests = usePendingJoinRequests(giaPhaId)
   const { links: profileLinks, loaded: profileLinksLoaded } = useProfileLinks(giaPhaId)
 
@@ -316,6 +319,15 @@ export function TreePage() {
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />
+        {onlineUids.length > 0 && (
+          <div className="online-members" title={t('tree.onlineNow', { names: onlineUids.map((u) => nameByUid[u] ?? '?').join(', ') })}>
+            {onlineUids.slice(0, 4).map((u) => (
+              <Avatar key={u} name={nameByUid[u] ?? '?'} size={26} />
+            ))}
+            {onlineUids.length > 4 && <span className="online-more">+{onlineUids.length - 4}</span>}
+            <span className="online-label">{t('tree.onlineCount', { count: onlineUids.length })}</span>
+          </div>
+        )}
         <UserMenu
           inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined}
           trashCount={deletedMembers.length}
