@@ -249,7 +249,6 @@
     "updateAvailable": "Update available"
   },
   "about": {
-    "back": "Back to the family tree",
     "tagline": "A shared family tree for your relatives: who is who, how everyone is related, and the stories of the family.",
     "versionTitle": "Version",
     "version": "Version",
@@ -294,6 +293,8 @@
         "title": "Print or share.",
         "body": "Export PDF creates a printable copy of the tree."
       }
-    }
+    },
+    "close": "Close",
+    "builtWith": "This app is developed with Claude Code, Anthropic’s AI coding assistant, working alongside the developer."
   }
 }

@@ -247,7 +247,6 @@
     "updateAvailable": "Có bản cập nhật"
   },
   "about": {
-    "back": "Quay lại gia phả",
     "tagline": "Gia phả chung cho cả họ: ai là ai, quan hệ họ hàng ra sao, và những câu chuyện của gia đình.",
     "versionTitle": "Phiên bản",
     "version": "Phiên bản",
@@ -292,6 +291,8 @@
         "title": "In hoặc chia sẻ.",
         "body": "Xuất PDF tạo bản in của gia phả."
       }
-    }
+    },
+    "close": "Đóng",
+    "builtWith": "Ứng dụng này được phát triển cùng Claude Code, trợ lý lập trình AI của Anthropic, làm việc song song với nhà phát triển."
   }
 }

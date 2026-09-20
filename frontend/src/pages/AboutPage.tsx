@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import { CloseIcon } from '../components/common/icons'
 import { Logo } from '../components/common/Logo'
 import { checkForUpdate, installLatestVersion } from '../lib/updateCheck'
 import { APP_VERSION, BUILD_DATE, BUILD_HASH } from '../lib/version'
@@ -28,7 +29,12 @@ export function AboutPage() {
 
   return (
     <div className="about-page">
-      <Link to="/" className="about-back">← {t('about.back')}</Link>
+      <div className="about-topbar">
+        <Link to="/" className="icon-button about-close" title={t('about.close')} aria-label={t('about.close')}>
+          <CloseIcon size={15} />
+          <span className="btn-label">{t('about.close')}</span>
+        </Link>
+      </div>
 
       <section className="about-card about-hero">
         <Logo size={56} />
@@ -67,6 +73,7 @@ export function AboutPage() {
         <p>
           <strong>Ly Vuong</strong> — {t('about.developerRole')}
         </p>
+        <p>{t('about.builtWith')}</p>
         <p>
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">{t('about.github')}</a>
         </p>
