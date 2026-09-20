@@ -53,6 +53,19 @@ export function TrashIcon({ size = 16 }: IconProps) {
   )
 }
 
+/** A wastebasket with a recycling arrow inside: deleted people can be restored from it. */
+export function RecycleBinIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...commonProps} width={size} height={size} aria-hidden="true">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" />
+      <path d="M14.5 11.5A3 3 0 1 0 15 14.5" strokeWidth={1.6} />
+      <path d="M14.8 9.2v2.6h-2.6" strokeWidth={1.6} />
+    </svg>
+  )
+}
+
 export function LanguageIcon({ size = 16 }: IconProps) {
   return (
     <svg {...commonProps} width={size} height={size} aria-hidden="true">

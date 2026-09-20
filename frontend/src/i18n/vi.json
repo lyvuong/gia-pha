@@ -105,6 +105,11 @@
     "allowedIntro": "Thêm số điện thoại mà người thân sẽ dùng để đăng nhập. Khi họ xác minh số đó, họ vào gia phả ngay.",
     "allowedLabel": "Đây là ai? (không bắt buộc)",
     "allowedAdd": "Thêm",
+    "allowedBulkLabel": "Hoặc dán nhiều số cùng lúc",
+    "allowedBulkPlaceholder": "Mỗi người một dòng:\nDì Lan, +84 912 345 678\n703 217 7712",
+    "allowedBulkAdd": "Thêm tất cả",
+    "allowedBulkResult_other": "Đã thêm {{count}} số.",
+    "allowedBulkSkipped_other": "{{count}} dòng không đọc được số và được giữ lại trong ô:",
     "allowedRemove": "Xóa",
     "allowedEmpty": "Chưa có số điện thoại nào.",
     "allowedInvalid": "Số điện thoại không hợp lệ. Số Mỹ/Canada không cần mã quốc gia; nước khác cần ghi kèm mã, ví dụ +84 912 345 678."

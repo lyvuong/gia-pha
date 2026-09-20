@@ -933,6 +933,12 @@
   font: inherit;
 }
 
+.user-menu-item-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .user-menu-item:hover {
   background: var(--color-bg);
 }

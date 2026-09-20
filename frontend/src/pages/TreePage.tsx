@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useParams } from 'react-router-dom'
-import { AddMemberIcon, TrashIcon } from '../components/common/icons'
+import { AddMemberIcon } from '../components/common/icons'
 import { ChartInfo } from '../components/common/ChartInfo'
 import { LanguageToggle } from '../components/common/LanguageToggle'
 import { Logo } from '../components/common/Logo'
@@ -240,23 +240,6 @@ export function TreePage() {
           <AddMemberIcon size={15} />
           <span className="btn-label">{t('tree.addMember')}</span>
         </button>
-        <button
-          type="button"
-          className="icon-button"
-          onClick={() => {
-            setSelectedMember(null)
-            setAdding(false)
-            setShowingRequests(false)
-            setShowingTrash(true)
-          }}
-          title={t('tree.trash')}
-        >
-          <TrashIcon size={15} />
-          <span className="btn-label">
-            {t('tree.trash')}
-            {deletedMembers.length > 0 && ` (${deletedMembers.length})`}
-          </span>
-        </button>
         {joinRequests.length > 0 && (
           <button
             type="button"
@@ -291,7 +274,17 @@ export function TreePage() {
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />
-        <UserMenu inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined} />
+        <UserMenu
+          inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined}
+          trashCount={deletedMembers.length}
+          onOpenTrash={() => {
+            setSelectedMember(null)
+            setAdding(false)
+            setShowingRequests(false)
+            setShowingAllowed(false)
+            setShowingTrash(true)
+          }}
+        />
       </header>
 
       <div className="tree-page-body">

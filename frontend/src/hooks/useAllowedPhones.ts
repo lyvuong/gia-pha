@@ -1,4 +1,4 @@
-import { arrayUnion, collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { arrayUnion, collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { db } from '../firebase/config'
 
@@ -53,5 +53,20 @@ export async function joinWithAllowedPhone(giaPhaId: string, uid: string): Promi
     return true
   } catch {
     return false
+  }
+}
+
+/** Adds many numbers at once (batches stay under Firestore's 500-write limit). */
+export async function addAllowedPhones(
+  giaPhaId: string,
+  entries: { phone: string; label: string }[],
+  addedBy: string,
+): Promise<void> {
+  for (let i = 0; i < entries.length; i += 400) {
+    const batch = writeBatch(db)
+    for (const { phone, label } of entries.slice(i, i + 400)) {
+      batch.set(doc(db, 'giaPha', giaPhaId, 'allowedPhones', phone), { label, addedBy, addedAt: serverTimestamp() })
+    }
+    await batch.commit()
   }
 }

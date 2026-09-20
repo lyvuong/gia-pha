@@ -258,15 +258,6 @@ export function MemberEditForm({ giaPhaId, member, members, currentUid, initialD
       )}
 
       <label>
-        Thế hệ / Generation
-        <input
-          type="number"
-          value={draft.generation}
-          onChange={(e) => updateField('generation', Number(e.target.value))}
-        />
-      </label>
-
-      <label>
         {t('member.birthDate')}
         <input
           type="date"

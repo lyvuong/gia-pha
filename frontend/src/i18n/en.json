@@ -105,6 +105,13 @@
     "allowedIntro": "Add the phone number a relative will sign in with. When they verify that number, they join the tree straight away.",
     "allowedLabel": "Who is this? (optional)",
     "allowedAdd": "Add",
+    "allowedBulkLabel": "Or paste many at once",
+    "allowedBulkPlaceholder": "One person per line:\nAunt Lan, +84 912 345 678\n703 217 7712",
+    "allowedBulkAdd": "Add all",
+    "allowedBulkResult_one": "Added {{count}} number.",
+    "allowedBulkResult_other": "Added {{count}} numbers.",
+    "allowedBulkSkipped_one": "{{count}} line had no readable number and was left in the box:",
+    "allowedBulkSkipped_other": "{{count}} lines had no readable number and were left in the box:",
     "allowedRemove": "Remove",
     "allowedEmpty": "No phone numbers added yet.",
     "allowedInvalid": "That doesn't look like a valid phone number. US/Canada numbers need no country code; for other countries include it, e.g. +84 912 345 678."

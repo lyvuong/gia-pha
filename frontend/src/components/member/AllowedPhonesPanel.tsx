@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { addAllowedPhone, removeAllowedPhone, useAllowedPhones } from '../../hooks/useAllowedPhones'
-import { normalizePhoneNumber } from '../../lib/phone'
+import { addAllowedPhone, addAllowedPhones, removeAllowedPhone, useAllowedPhones } from '../../hooks/useAllowedPhones'
+import { normalizePhoneNumber, parsePhoneList } from '../../lib/phone'
 
 interface AllowedPhonesPanelProps {
   giaPhaId: string
@@ -15,6 +15,8 @@ export function AllowedPhonesPanel({ giaPhaId, currentUid, onClose }: AllowedPho
   const phones = useAllowedPhones(giaPhaId)
   const [phone, setPhone] = useState('')
   const [label, setLabel] = useState('')
+  const [bulk, setBulk] = useState('')
+  const [bulkResult, setBulkResult] = useState<{ added: number; skipped: string[] } | null>(null)
   const [error, setError] = useState<'invalid' | 'failed' | null>(null)
 
   async function add(e: React.FormEvent) {
@@ -29,6 +31,20 @@ export function AllowedPhonesPanel({ giaPhaId, currentUid, onClose }: AllowedPho
       await addAllowedPhone(giaPhaId, e164, label.trim(), currentUid)
       setPhone('')
       setLabel('')
+    } catch {
+      setError('failed')
+    }
+  }
+
+  async function addMany(e: React.FormEvent) {
+    e.preventDefault()
+    const { entries, skipped } = parsePhoneList(bulk)
+    setError(null)
+    try {
+      await addAllowedPhones(giaPhaId, entries, currentUid)
+      setBulkResult({ added: entries.length, skipped })
+      // Keep only the lines that couldn't be read, so they can be fixed and retried.
+      setBulk(skipped.join('\n'))
     } catch {
       setError('failed')
     }
@@ -59,6 +75,26 @@ export function AllowedPhonesPanel({ giaPhaId, currentUid, onClose }: AllowedPho
         </label>
         <button type="submit">{t('tree.allowedAdd')}</button>
       </form>
+      <form onSubmit={addMany}>
+        <label>
+          {t('tree.allowedBulkLabel')}
+          <textarea
+            value={bulk}
+            onChange={(e) => setBulk(e.target.value)}
+            placeholder={t('tree.allowedBulkPlaceholder')}
+            rows={5}
+          />
+        </label>
+        <button type="submit" disabled={!bulk.trim()}>{t('tree.allowedBulkAdd')}</button>
+      </form>
+      {bulkResult && (
+        <p>
+          {t('tree.allowedBulkResult', { count: bulkResult.added })}
+          {bulkResult.skipped.length > 0 && (
+            <> {t('tree.allowedBulkSkipped', { count: bulkResult.skipped.length })} {bulkResult.skipped.join(' | ')}</>
+          )}
+        </p>
+      )}
       {error && <p className="error-text">{t(error === 'invalid' ? 'tree.allowedInvalid' : 'tree.requestActionFailed')}</p>}
       {phones.length === 0 ? (
         <p className="trash-empty">{t('tree.allowedEmpty')}</p>

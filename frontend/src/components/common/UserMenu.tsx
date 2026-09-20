@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthProvider'
 import { Avatar } from './Avatar'
+import { RecycleBinIcon } from './icons'
 
 interface UserMenuProps {
   /** When given, the menu offers to copy this invitation link for sharing with relatives. */
   inviteLink?: string
+  /** When given, the menu offers the recycle bin of deleted family members. */
+  onOpenTrash?: () => void
+  trashCount?: number
 }
 
-export function UserMenu({ inviteLink }: UserMenuProps) {
+export function UserMenu({ inviteLink, onOpenTrash, trashCount = 0 }: UserMenuProps) {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
@@ -69,6 +73,23 @@ export function UserMenu({ inviteLink }: UserMenuProps) {
           {inviteLink && (
             <button type="button" role="menuitem" className="user-menu-item" onClick={copyInviteLink}>
               {copied ? t('auth.inviteLinkCopied') : t('auth.copyInviteLink')}
+            </button>
+          )}
+          {onOpenTrash && (
+            <button
+              type="button"
+              role="menuitem"
+              className="user-menu-item user-menu-item-icon"
+              onClick={() => {
+                setOpen(false)
+                onOpenTrash()
+              }}
+            >
+              <RecycleBinIcon size={15} />
+              <span>
+                {t('tree.trash')}
+                {trashCount > 0 && ` (${trashCount})`}
+              </span>
             </button>
           )}
           <button
