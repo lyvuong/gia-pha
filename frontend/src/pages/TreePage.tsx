@@ -108,9 +108,10 @@ export function TreePage() {
   const rootMember = rootId ? members.find((m) => m.id === rootId) ?? null : null
   const targetMember = targetId ? members.find((m) => m.id === targetId) ?? null : null
 
-  function showChartFor(id: string, type: ChartType = 'pedigree') {
+  // Choosing someone keeps the chart type already in use; with none chosen yet (full tree) it starts on the family group chart.
+  function showChartFor(id: string, type?: ChartType) {
     setRootMemberId(id)
-    setChartType(type)
+    setChartType(type ?? (chartType === 'full' ? 'familyGroup' : chartType))
   }
 
   function showFullTree() {
@@ -352,7 +353,8 @@ export function TreePage() {
             setShowingTrash(false)
             setShowingRequests(false)
             setSelectedMember(m)
-            showChartFor(m.id)
+            // Only the first pick fills the search bar and chooses the chart; after that a click just opens the details.
+            if (!rootId) showChartFor(m.id)
           }}
           containerRef={treeContainerRef}
         />
