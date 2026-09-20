@@ -26,20 +26,30 @@ service cloud.firestore {
 
       // Only existing members ever change the tree document — a non-member can never write
       // to it, so knowing the tree's id (it ships in the app) is not enough to get in.
-      allow update: if request.auth != null
-        && (request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid)
-        && (
-          // Update tree metadata (e.g. renaming) without touching `editors`.
-          request.resource.data.editors == resource.data.editors ||
-          // Approve a join request: append exactly one uid to `editors` — and only one who has
-          // asked, i.e. has a doc in `joinRequests`. Nothing else may change in the same write.
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
-            && request.resource.data.editors.size() == resource.data.editors.size() + 1
-            && request.resource.data.editors == resource.data.editors.concat(
-              [request.resource.data.editors[request.resource.data.editors.size() - 1]])
-            && exists(/databases/$(database)/documents/giaPha/$(giaPhaId)/joinRequests/$(
-              request.resource.data.editors[request.resource.data.editors.size() - 1])))
-        );
+      allow update: if request.auth != null && (
+        (
+          (request.auth.uid in resource.data.editors || request.auth.uid == resource.data.ownerUid)
+          && (
+            // Update tree metadata (e.g. renaming) without touching `editors`.
+            request.resource.data.editors == resource.data.editors ||
+            // Approve a join request: append exactly one uid to `editors` — and only one who has
+            // asked, i.e. has a doc in `joinRequests`. Nothing else may change in the same write.
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
+              && request.resource.data.editors.size() == resource.data.editors.size() + 1
+              && request.resource.data.editors == resource.data.editors.concat(
+                [request.resource.data.editors[request.resource.data.editors.size() - 1]])
+              && exists(/databases/$(database)/documents/giaPha/$(giaPhaId)/joinRequests/$(
+                request.resource.data.editors[request.resource.data.editors.size() - 1])))
+          )
+        ) ||
+        // A relative whose phone-verified number a member has put on `allowedPhones` joins
+        // themselves, no approval needed: they may append only their own uid, nothing else.
+        (request.auth.token.phone_number != null
+          && exists(/databases/$(database)/documents/giaPha/$(giaPhaId)/allowedPhones/$(request.auth.token.phone_number))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['editors'])
+          && request.resource.data.editors.size() == resource.data.editors.size() + 1
+          && request.resource.data.editors == resource.data.editors.concat([request.auth.uid]))
+      );
 
       allow delete: if false;
 
@@ -97,6 +107,12 @@ service cloud.firestore {
         );
 
         allow delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
+      }
+
+      // Phone numbers (E.164 doc ids) of known relatives who may join without approval.
+      // Members manage the list; the rule on `giaPha` update checks it with exists().
+      match /allowedPhones/{phone} {
+        allow read, create, update, delete: if request.auth != null && isMember(giaPhaId, request.auth.uid);
       }
 
       match /editorProfiles/{uid} {

@@ -9,6 +9,7 @@ import { SearchBar } from '../components/common/SearchBar'
 import { ThemeToggle } from '../components/common/ThemeToggle'
 import { UserMenu } from '../components/common/UserMenu'
 import { MemberDetailPanel } from '../components/member/MemberDetailPanel'
+import { AllowedPhonesPanel } from '../components/member/AllowedPhonesPanel'
 import { JoinRequestsPanel } from '../components/member/JoinRequestsPanel'
 import { MemberEditForm } from '../components/member/MemberEditForm'
 import { TrashPanel } from '../components/member/TrashPanel'
@@ -48,6 +49,7 @@ export function TreePage() {
   const [adding, setAdding] = useState(false)
   const [showingTrash, setShowingTrash] = useState(false)
   const [showingRequests, setShowingRequests] = useState(false)
+  const [showingAllowed, setShowingAllowed] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const treeContainerRef = useRef<HTMLDivElement | null>(null)
@@ -271,6 +273,21 @@ export function TreePage() {
             <span className="btn-label">{t('tree.requests')} ({joinRequests.length})</span>
           </button>
         )}
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => {
+            setSelectedMember(null)
+            setAdding(false)
+            setShowingTrash(false)
+            setShowingRequests(false)
+            setShowingAllowed(true)
+          }}
+          title={t('tree.allowedTitle')}
+        >
+          <AddMemberIcon size={15} />
+          <span className="btn-label">{t('tree.allowedButton')}</span>
+        </button>
         <PdfExportButton giaPhaName={giaPha.name} members={members} treeContainerRef={treeContainerRef} />
         <ThemeToggle />
         <LanguageToggle />
@@ -320,6 +337,10 @@ export function TreePage() {
             onViewPedigree={() => showChartFor(selectedMember.id, 'pedigree')}
             onViewDescendants={() => showChartFor(selectedMember.id, 'descendant')}
           />
+        )}
+
+        {showingAllowed && (
+          <AllowedPhonesPanel giaPhaId={giaPha.id} currentUid={user.uid} onClose={() => setShowingAllowed(false)} />
         )}
 
         {showingRequests && (

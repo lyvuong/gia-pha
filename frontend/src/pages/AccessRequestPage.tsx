@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Logo } from '../components/common/Logo'
 import { useAuth } from '../context/AuthProvider'
+import { joinWithAllowedPhone } from '../hooks/useAllowedPhones'
 import {
   requestAccess,
   requestAccessAgain,
@@ -28,7 +29,27 @@ export function AccessRequestPage({ giaPhaId }: AccessRequestPageProps) {
   // What's typed so far; falls back to what was submitted before (when asking again).
   const [draft, setDraft] = useState<Partial<JoinRequestDetails>>({})
 
-  if (loading) return <p className="page-status">{t('common.loading')}</p>
+  // A relative whose phone number a member has listed joins straight away; anyone else falls
+  // through to the request form below.
+  const [autoJoin, setAutoJoin] = useState<'checking' | 'no'>(user?.phoneNumber ? 'checking' : 'no')
+  const uid = user?.uid
+  const hasPhone = !!user?.phoneNumber
+  useEffect(() => {
+    if (!uid || !hasPhone) {
+      setAutoJoin('no')
+      return
+    }
+    let cancelled = false
+    void joinWithAllowedPhone(giaPhaId, uid).then((joined) => {
+      // On success the parent sees the new membership and navigates into the tree.
+      if (!cancelled && !joined) setAutoJoin('no')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [giaPhaId, uid, hasPhone])
+
+  if (loading || autoJoin === 'checking') return <p className="page-status">{t('common.loading')}</p>
 
   const declined = request?.status === 'declined'
   const values: JoinRequestDetails = {

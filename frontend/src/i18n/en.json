@@ -11,8 +11,8 @@
     "verificationCodePlaceholder": "Verification code",
     "verifyCode": "Verify",
     "signOut": "Sign out",
-    "phoneHint": "Include your country code, e.g. +1 703 217 7712 or +84 912 345 678.",
-    "invalidPhone": "Enter your phone number with its country code, e.g. +1 703 217 7712.",
+    "phoneHint": "US/Canada numbers need no country code, e.g. 703 217 7712. Elsewhere, include it, e.g. +84 912 345 678.",
+    "invalidPhone": "US/Canada numbers need no country code; for other countries include it, e.g. +84 912 345 678.",
     "copyInviteLink": "Copy invite link",
     "inviteLinkCopied": "Link copied ✓",
     "copyInvitePrompt": "Copy this invite link:"
@@ -99,7 +99,15 @@
     "approve": "Approve",
     "decline": "Decline",
     "approveConfirm": "Let {{name}} into the family tree? They will be able to view and edit everything.",
-    "requestActionFailed": "Something went wrong. Please try again."
+    "requestActionFailed": "Something went wrong. Please try again.",
+    "allowedButton": "Invite by phone",
+    "allowedTitle": "Relatives who can join without approval",
+    "allowedIntro": "Add the phone number a relative will sign in with. When they verify that number, they join the tree straight away.",
+    "allowedLabel": "Who is this? (optional)",
+    "allowedAdd": "Add",
+    "allowedRemove": "Remove",
+    "allowedEmpty": "No phone numbers added yet.",
+    "allowedInvalid": "That doesn't look like a valid phone number. US/Canada numbers need no country code; for other countries include it, e.g. +84 912 345 678."
   },
   "member": {
     "fullName": "Full name",
