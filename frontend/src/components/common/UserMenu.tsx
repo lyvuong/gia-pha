@@ -9,10 +9,12 @@ interface UserMenuProps {
   inviteLink?: string
   /** When given, the menu offers the recycle bin of deleted family members. */
   onOpenTrash?: () => void
+  /** When given, the menu offers the signed-in person's own profile (or asks who they are). */
+  onOpenProfile?: () => void
   trashCount?: number
 }
 
-export function UserMenu({ inviteLink, onOpenTrash, trashCount = 0 }: UserMenuProps) {
+export function UserMenu({ inviteLink, onOpenTrash, onOpenProfile, trashCount = 0 }: UserMenuProps) {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
@@ -73,6 +75,19 @@ export function UserMenu({ inviteLink, onOpenTrash, trashCount = 0 }: UserMenuPr
           {inviteLink && (
             <button type="button" role="menuitem" className="user-menu-item" onClick={copyInviteLink}>
               {copied ? t('auth.inviteLinkCopied') : t('auth.copyInviteLink')}
+            </button>
+          )}
+          {onOpenProfile && (
+            <button
+              type="button"
+              role="menuitem"
+              className="user-menu-item"
+              onClick={() => {
+                setOpen(false)
+                onOpenProfile()
+              }}
+            >
+              {t('profile.menu')}
             </button>
           )}
           {onOpenTrash && (

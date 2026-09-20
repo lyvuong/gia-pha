@@ -231,5 +231,16 @@
     "notesLabel": "How are you related to the family?",
     "notesPlaceholder": "e.g. I am Anh’s cousin, son of Uncle Hai from Hà Nội.",
     "submit": "Ask to join"
+  },
+  "profile": {
+    "title": "Who are you in the family?",
+    "intro": "Pick yourself from the tree, or enter your full name to be added. Then you can edit your own profile.",
+    "pickHeading": "I am already in the tree",
+    "searchPlaceholder": "Search your name",
+    "change": "Change",
+    "thisIsMe": "This is me",
+    "newHeading": "I am not in the tree yet",
+    "addMe": "Add me",
+    "menu": "My profile"
   }
 }

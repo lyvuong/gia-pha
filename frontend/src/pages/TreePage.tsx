@@ -11,6 +11,7 @@ import { UserMenu } from '../components/common/UserMenu'
 import { MemberDetailPanel } from '../components/member/MemberDetailPanel'
 import { AllowedPhonesPanel } from '../components/member/AllowedPhonesPanel'
 import { JoinRequestsPanel } from '../components/member/JoinRequestsPanel'
+import { MyProfilePanel } from '../components/member/MyProfilePanel'
 import { MemberEditForm } from '../components/member/MemberEditForm'
 import { TrashPanel } from '../components/member/TrashPanel'
 import { PdfExportButton } from '../components/pdf/PdfExportButton'
@@ -18,7 +19,7 @@ import { KinshipSummary } from '../components/tree/KinshipSummary'
 import { TreeView } from '../components/tree/TreeView'
 import { useAuth } from '../context/AuthProvider'
 import { updateGiaPhaName, useGiaPha } from '../hooks/useGiaPha'
-import { setEditorProfile, useEditorProfiles } from '../hooks/useEditorProfiles'
+import { setEditorProfile, useEditorProfiles, useProfileLinks } from '../hooks/useEditorProfiles'
 import { usePendingJoinRequests } from '../hooks/useJoinRequests'
 import { useMembers } from '../hooks/useMembers'
 import { findKinship } from '../lib/kinship'
@@ -40,6 +41,7 @@ export function TreePage() {
   const { members, deletedMembers, loading: membersLoading } = useMembers(giaPhaId)
   const editorNames = useEditorProfiles(giaPhaId)
   const joinRequests = usePendingJoinRequests(giaPhaId)
+  const { links: profileLinks, loaded: profileLinksLoaded } = useProfileLinks(giaPhaId)
 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [rootMemberId, setRootMemberId] = useState<string | null>(null)
@@ -50,6 +52,10 @@ export function TreePage() {
   const [showingTrash, setShowingTrash] = useState(false)
   const [showingRequests, setShowingRequests] = useState(false)
   const [showingAllowed, setShowingAllowed] = useState(false)
+  // Asks a member who they are in the tree until they answer (or dismiss it for this visit).
+  const [profilePromptDismissed, setProfilePromptDismissed] = useState(false)
+  const [showingProfilePicker, setShowingProfilePicker] = useState(false)
+  const [pendingSelectId, setPendingSelectId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const treeContainerRef = useRef<HTMLDivElement | null>(null)
@@ -68,6 +74,16 @@ export function TreePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members])
+
+  // After picking or adding themselves, open that profile once it has arrived in the members list.
+  useEffect(() => {
+    if (!pendingSelectId) return
+    const found = members.find((m) => m.id === pendingSelectId)
+    if (found) {
+      setSelectedMember(found)
+      setPendingSelectId(null)
+    }
+  }, [members, pendingSelectId])
 
   // The root is dropped if the person is deleted while being viewed.
   const rootId = rootMemberId && members.some((m) => m.id === rootMemberId) ? rootMemberId : null
@@ -100,6 +116,24 @@ export function TreePage() {
 
   const isMember = giaPha.editors.includes(user.uid) || giaPha.ownerUid === user.uid
   if (!isMember) return <p className="page-status">{t('join.notFound')}</p>
+
+  // Which family member this signed-in person is (if they've said, and that person still exists).
+  const myMember = members.find((m) => m.id === profileLinks[user.uid]) ?? null
+  const takenMemberIds = new Set(Object.entries(profileLinks).filter(([uid]) => uid !== user.uid).map(([, id]) => id))
+  const showProfilePicker = showingProfilePicker || (profileLinksLoaded && !myMember && !profilePromptDismissed)
+
+  function openMyProfile() {
+    if (!myMember) {
+      setShowingProfilePicker(true)
+      return
+    }
+    setAdding(false)
+    setShowingTrash(false)
+    setShowingRequests(false)
+    setShowingAllowed(false)
+    setShowingProfilePicker(false)
+    setSelectedMember(myMember)
+  }
 
   function startEditingName() {
     setNameDraft(giaPha!.name)
@@ -277,6 +311,7 @@ export function TreePage() {
         <UserMenu
           inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined}
           trashCount={deletedMembers.length}
+          onOpenProfile={openMyProfile}
           onOpenTrash={() => {
             setSelectedMember(null)
             setAdding(false)
@@ -318,7 +353,25 @@ export function TreePage() {
           </div>
         )}
 
-        {!adding && !showingTrash && !showingRequests && selectedMember && (
+        {showProfilePicker && (
+          <MyProfilePanel
+            giaPhaId={giaPha.id}
+            currentUid={user.uid}
+            members={members}
+            takenMemberIds={takenMemberIds}
+            defaultName={user.displayName ?? ''}
+            onLinked={(memberId) => {
+              setShowingProfilePicker(false)
+              setPendingSelectId(memberId)
+            }}
+            onClose={() => {
+              setShowingProfilePicker(false)
+              setProfilePromptDismissed(true)
+            }}
+          />
+        )}
+
+        {!showProfilePicker && !adding && !showingTrash && !showingRequests && selectedMember && (
           <MemberDetailPanel
             giaPha={giaPha}
             member={selectedMember}

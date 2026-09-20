@@ -33,3 +33,38 @@ export function useEditorProfiles(giaPhaId: string | undefined): Record<string, 
 export async function setEditorProfile(giaPhaId: string, uid: string, displayName: string): Promise<void> {
   await setDoc(doc(db, 'giaPha', giaPhaId, 'editorProfiles', uid), { displayName }, { merge: true })
 }
+
+/**
+ * Which family-tree member each signed-in editor says they are, stored as `memberId` on their
+ * `editorProfiles/{uid}` doc. `loaded` is false until the first snapshot, so callers don't
+ * ask someone who has already answered.
+ */
+export function useProfileLinks(giaPhaId: string | undefined): { links: Record<string, string>; loaded: boolean } {
+  const [state, setState] = useState<{ links: Record<string, string>; loaded: boolean }>({ links: {}, loaded: false })
+
+  useEffect(() => {
+    if (!giaPhaId) {
+      setState({ links: {}, loaded: false })
+      return
+    }
+    const unsubscribe = onSnapshot(
+      collection(db, 'giaPha', giaPhaId, 'editorProfiles'),
+      (snap) => {
+        const links: Record<string, string> = {}
+        for (const d of snap.docs) {
+          const memberId = d.data().memberId
+          if (typeof memberId === 'string' && memberId) links[d.id] = memberId
+        }
+        setState({ links, loaded: true })
+      },
+      () => setState({ links: {}, loaded: true }),
+    )
+    return unsubscribe
+  }, [giaPhaId])
+
+  return state
+}
+
+export async function linkProfileToMember(giaPhaId: string, uid: string, memberId: string): Promise<void> {
+  await setDoc(doc(db, 'giaPha', giaPhaId, 'editorProfiles', uid), { memberId }, { merge: true })
+}

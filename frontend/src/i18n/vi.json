@@ -229,5 +229,16 @@
     "notesLabel": "Bạn có quan hệ thế nào với gia đình?",
     "notesPlaceholder": "ví dụ: Tôi là em họ của Anh, con của bác Hai ở Hà Nội.",
     "submit": "Xin vào"
+  },
+  "profile": {
+    "title": "Bạn là ai trong gia phả?",
+    "intro": "Chọn tên bạn trong gia phả, hoặc nhập họ tên đầy đủ để được thêm vào. Sau đó bạn có thể chỉnh sửa hồ sơ của mình.",
+    "pickHeading": "Tôi đã có trong gia phả",
+    "searchPlaceholder": "Tìm tên của bạn",
+    "change": "Đổi",
+    "thisIsMe": "Đây là tôi",
+    "newHeading": "Tôi chưa có trong gia phả",
+    "addMe": "Thêm tôi",
+    "menu": "Hồ sơ của tôi"
   }
 }
