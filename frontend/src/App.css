@@ -806,19 +806,19 @@
     gap: 4px;
   }
 
-  .tree-title,
+  .tree-title {
+    display: none;
+  }
+
   .tree-title-input {
     min-width: 70px;
     max-width: 30vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     font-size: 15px;
-    flex-shrink: 1;
   }
 
   .search-bar {
-    flex-shrink: 3;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .search-bar input {
