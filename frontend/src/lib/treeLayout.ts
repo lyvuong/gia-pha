@@ -973,10 +973,23 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   for (const [generation, unions] of unionSpansByGeneration) {
     for (const u of unions) spanByUnionKey.set(u.unionKey, { generation, lo: u.lo, hi: u.hi })
   }
+  // A solo parent (no recorded spouse) gets a color from this same pass too — otherwise
+  // several solo parents' trunks side by side in one generation all fell back to the
+  // same default stroke, reading as one tangled family. Their span is measured from
+  // their own box's center (where their trunk drops from) out to their furthest child;
+  // they stay out of `unionSpansByGeneration` itself, which also drives trunk-row
+  // staggering that solo parents don't take part in.
+  for (const unit of unitsByKey.values()) {
+    if (unit.spouse || unit.children.length === 0) continue
+    const anchorPos = positions.get(unit.anchor.id)
+    if (!anchorPos) continue
+    const xs = [anchorPos.x + NODE_WIDTH / 2, ...unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)]
+    spanByUnionKey.set(unit.key, { generation: unit.anchor.generation, lo: Math.min(...xs), hi: Math.max(...xs) })
+  }
   const colorsUsedByGeneration = new Map<number, Map<string, string>>()
   const colorsByAnchor = new Map<string, Set<string>>()
   for (const unit of unitsByKey.values()) {
-    if (!unit.spouse) continue
+    if (!unit.spouse && unit.children.length === 0) continue
     const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
     const siblingColors = stacked ? (colorsByAnchor.get(unit.anchor.id) ?? new Set<string>()) : undefined
     const span = spanByUnionKey.get(unit.key)
@@ -1176,8 +1189,8 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // couples' loop below) is what lets a leg actually steer around it — checked the other
   // way around, a solo parent's own trunk has no later chance to notice a leg that already
   // committed to its column first. Solo parents don't take part in `trunkRowByUnionKey`'s
-  // own row-staggering or the shared color-exclusion pass (both `unit.spouse`-only), so
-  // running this loop first doesn't disturb either of those.
+  // own row-staggering (`unit.spouse`-only), and their colors were already assigned in the
+  // shared color-exclusion pass above, so running this loop first doesn't disturb either.
   for (const unit of unitsByKey.values()) {
     if (unit.spouse) continue
     const parentPos = positions.get(unit.anchor.id)!
@@ -1213,7 +1226,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       )
       // A solo parent has no union dot to start from, so leave from their own bottom handle —
       // without naming it, react-flow takes the node's *first* source handle (the left side).
-      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, parentBottomY, barY, rowChildren, undefined, unit.anchor.id, 'bottom')
+      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, parentBottomY, barY, rowChildren, unionColors.get(unit.key), unit.anchor.id, 'bottom')
     }
   }
 
