@@ -3,7 +3,7 @@ import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, type Ref } from 'react'
 import type { ChartType } from '../../lib/chartViews'
 import { computeFanLayout } from '../../lib/fanLayout'
-import { computeTreeLayout, type TreeNode } from '../../lib/treeLayout'
+import { computeTreeLayout, findEldestSonIds, type TreeNode } from '../../lib/treeLayout'
 import type { Member } from '../../types/models'
 import { ElbowEdge } from './ElbowEdge'
 import { FanNode } from './FanNode'
@@ -30,6 +30,9 @@ function FitOnChange({ viewKey }: { viewKey: string }) {
 
 interface TreeViewProps {
   members: Member[]
+  /** Everyone in the tree, not just this chart's `members` — for tree-wide facts like who
+   * is an eldest son, which a filtered chart alone can't decide. */
+  allMembers: Member[]
   chartType: ChartType
   /** The person the chart is centered on, or null for the full tree. */
   rootId: string | null
@@ -40,7 +43,7 @@ interface TreeViewProps {
   containerRef?: Ref<HTMLDivElement>
 }
 
-export function TreeView({ members, chartType, rootId, selectedMemberId, viewKey, onSelectMember, containerRef }: TreeViewProps) {
+export function TreeView({ members, allMembers, chartType, rootId, selectedMemberId, viewKey, onSelectMember, containerRef }: TreeViewProps) {
   const isFan = chartType === 'fan' && rootId !== null
   const { nodes, edges } = useMemo(() => {
     if (isFan) {
@@ -68,9 +71,18 @@ export function TreeView({ members, chartType, rootId, selectedMemberId, viewKey
     return computeTreeLayout(members)
   }, [members, isFan, rootId, selectedMemberId, onSelectMember])
 
+  const eldestSonIds = useMemo(() => findEldestSonIds(allMembers), [allMembers])
+
   const styledNodes = useMemo(
-    () => nodes.map((n) => (isFan ? n : { ...n, selected: n.id === selectedMemberId })),
-    [nodes, selectedMemberId, isFan],
+    () =>
+      nodes.map((n) =>
+        isFan
+          ? n
+          : n.type === 'memberNode'
+            ? { ...n, selected: n.id === selectedMemberId, data: { ...n.data, isEldestSon: eldestSonIds.has(n.id) } }
+            : { ...n, selected: n.id === selectedMemberId },
+      ),
+    [nodes, selectedMemberId, isFan, eldestSonIds],
   )
 
   const handleNodeClick: NodeMouseHandler = (_event, node) => {

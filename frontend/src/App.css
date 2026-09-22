@@ -349,6 +349,24 @@
   font-weight: 700;
 }
 
+.member-node-eldest-son {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-gold);
+  border: 1.5px solid var(--color-gold-dark);
+  box-shadow: 0 1px 3px var(--color-shadow);
+  color: var(--color-maroon);
+  font-size: 11px;
+  line-height: 1;
+}
+
 .member-node-gender-male {
   color: var(--color-gender-male);
 }

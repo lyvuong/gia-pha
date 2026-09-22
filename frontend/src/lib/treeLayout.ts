@@ -66,6 +66,10 @@ export interface TreeNodeData extends Record<string, unknown> {
    * `undefined` for a root member with no recorded parents (or a solo-parent's child),
    * leaving their avatar's usual name-hash color and the card's plain background alone. */
   avatarColor?: string
+  /** Member-node only: true for his father's eldest son (trưởng nam) —
+   * see `findEldestSonIds`. Set by `TreeView`, not `computeTreeLayout`, since a
+   * filtered chart may leave out the siblings that decide it. */
+  isEldestSon?: boolean
 }
 
 /** Stored `generation` values are relative (can be negative, e.g. an ancestor added
@@ -292,6 +296,44 @@ export function compareBirthOrder(a: Member, b: Member): number {
   if (a.siblingOrder != null || b.siblingOrder != null) return (a.siblingOrder ?? 0) - (b.siblingOrder ?? 0)
   if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
   return 0
+}
+
+/** The eldest son (trưởng nam) of each father: his oldest son across all his wives, not
+ * one per wife. Sons whose father isn't recorded fall back to one per recorded parent set.
+ * Two sons with different mothers are compared by birth date when both have one, and
+ * otherwise by their mothers' own order among the father's wives (earlier wife first) —
+ * `siblingOrder` only ranks full siblings against each other, so it can't settle it.
+ * Must be given the whole tree's members, not a filtered chart's, so a son's status
+ * doesn't depend on which siblings are on screen. */
+export function findEldestSonIds(members: Member[]): Set<string> {
+  const byId = new Map(members.map((m) => [m.id, m]))
+  const sonsByFather = new Map<string, Member[]>()
+  for (const m of members) {
+    if (m.gender !== 'male') continue
+    const parents = m.parentIds.filter((p) => byId.has(p))
+    if (parents.length === 0) continue
+    const father = parents.find((p) => byId.get(p)?.gender === 'male')
+    const key = father ?? [...parents].sort().join('|')
+    sonsByFather.set(key, [...(sonsByFather.get(key) ?? []), m])
+  }
+
+  const motherOf = (son: Member, fatherId: string): Member | undefined =>
+    son.parentIds.filter((p) => p !== fatherId).map((p) => byId.get(p)).find((p) => p !== undefined)
+
+  const eldest = new Set<string>()
+  for (const [key, sons] of sonsByFather.entries()) {
+    const compare = (a: Member, b: Member): number => {
+      const motherA = motherOf(a, key)
+      const motherB = motherOf(b, key)
+      if (motherA?.id !== motherB?.id) {
+        if (a.birthDate && b.birthDate) return a.birthDate.localeCompare(b.birthDate)
+        if (motherA && motherB) return compareBirthOrder(motherA, motherB) || motherA.id.localeCompare(motherB.id)
+      }
+      return compareBirthOrder(a, b) || a.id.localeCompare(b.id)
+    }
+    eldest.add(sons.sort(compare)[0].id)
+  }
+  return eldest
 }
 
 /** Orders siblings men-left, women-right (members with no recorded gender in between),

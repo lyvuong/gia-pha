@@ -357,6 +357,7 @@ export function TreePage() {
         )}
         <TreeView
           members={chartMembers}
+          allMembers={members}
           chartType={rootId ? chartType : 'full'}
           rootId={rootId}
           selectedMemberId={selectedMember?.id ?? null}

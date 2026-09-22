@@ -26,6 +26,7 @@
     "exportPdf": "Export PDF",
     "search": "Search members...",
     "generation": "Generation {{n}}",
+    "eldestSon": "Eldest son",
     "createTitle": "Create your gia phả",
     "createNamePlaceholder": "Family tree name, e.g. \"Gia phả họ Nguyễn\"",
     "createButton": "Create",

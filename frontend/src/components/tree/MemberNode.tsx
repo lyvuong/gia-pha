@@ -40,6 +40,11 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
           {member.gender === 'male' ? '♂' : '♀'}
         </span>
       )}
+      {data.isEldestSon && (
+        <span className="member-node-eldest-son" title={t('tree.eldestSon')}>
+          ★
+        </span>
+      )}
       <Avatar name={member.fullName} photoUrl={member.photoUrl} size={44} colorOverride={data.avatarColor} />
       <div className="member-node-info">
         <div className="member-node-name">{member.fullName}</div>
