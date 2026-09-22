@@ -1001,14 +1001,57 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     return list
   }
 
+  // Every connector's own vertical column, once actually placed — a backstop against two
+  // *unrelated* connectors running straight down the exact same x for some real stretch,
+  // which reads as one continuous line even once their bars/turns are safely apart in y
+  // (see `resolveBarY` just below, whose own fix this complements): a solo parent's own
+  // trunk drop and a distant, unrelated child's incoming leg — pulled into that same
+  // column by nothing more than coincidence — confirmed 26px apart in y yet still running
+  // down the identical x for a real stretch, because *y* separation alone never moves
+  // either one off of that shared column. Checked (and appended to) wherever a leg's own
+  // landing column is picked, below.
+  const occupiedColumns: { x: number; yLo: number; yHi: number }[] = []
+  function registerColumn(x: number, y0: number, y1: number) {
+    occupiedColumns.push({ x, yLo: Math.min(y0, y1), yHi: Math.max(y0, y1) })
+  }
+  /** Nudges a leg's landing column away from `trueX` — in `CHANNEL_SPACING` steps, the
+   * same fine increment a stacked wife's own channel already uses — only when it would
+   * otherwise run down the exact same x as an already-`occupiedColumns` segment over some
+   * real overlapping stretch of `[yLo, yHi]`. The leg still lands exactly on the child's
+   * real position: `legOnly`'s own path already draws a short final horizontal jog from
+   * whatever `centerX` it's given back to the target's true x right at the target's own
+   * row, so nudging *this* column never risks a diagonal or an estimated coordinate — only
+   * the shape of an already fully axis-aligned line. */
+  function resolveLegX(trueX: number, yLo: number, yHi: number): number {
+    const lo = Math.min(yLo, yHi)
+    const hi = Math.max(yLo, yHi)
+    const clear = (x: number) => occupiedColumns.every((c) => c.x !== x || c.yHi <= lo || c.yLo >= hi)
+    const x = clear(trueX) ? trueX : (searchOutward(trueX, CHANNEL_SPACING, 10, () => true, clear) ?? trueX)
+    registerColumn(x, lo, hi)
+    return x
+  }
+
   /** Pushes one shared "trunk" edge (`sourceId` straight down to `barY`, then the full
    * horizontal bar spanning every child in `rowChildren`) plus one short "leg" edge per
    * child (bar down to that child alone) — rather than each child's own edge retracing
    * the whole shared leg on its own, which drew that shared portion once per child and
    * rendered visibly thicker near `sourceId` than out at the single farthest child. */
-  function pushChildTrunkAndLegs(sourceId: string, sourceX: number, barY: number, rowChildren: Member[], color: string | undefined, idPrefix: string, sourceHandle?: string) {
+  function pushChildTrunkAndLegs(
+    sourceId: string,
+    sourceX: number,
+    sourceY: number,
+    barY: number,
+    rowChildren: Member[],
+    color: string | undefined,
+    idPrefix: string,
+    sourceHandle?: string,
+  ) {
     const childXs = rowChildren.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
     const style = color ? { stroke: color } : undefined
+    // The source's own drop always runs straight down from its box's exact center — there's
+    // no bend to nudge it with, short of moving the box itself — so it's registered as-is,
+    // purely so some *other*, unrelated leg checked afterward knows to steer clear of it.
+    registerColumn(sourceX, sourceY, barY)
     edges.push({
       id: `trunk-${idPrefix}-${rowChildren[0].id}`,
       source: sourceId,
@@ -1019,13 +1062,15 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       style,
     })
     for (const child of rowChildren) {
+      const trueX = positions.get(child.id)!.x + NODE_WIDTH / 2
+      const legX = resolveLegX(trueX, barY, positions.get(child.id)!.y)
       edges.push({
         id: `child-${idPrefix}-${child.id}`,
         source: sourceId,
         sourceHandle,
         target: child.id,
         type: 'elbowEdge',
-        data: { centerX: positions.get(child.id)!.x + NODE_WIDTH / 2, viaY: barY, legOnly: true },
+        data: { centerX: legX, viaY: barY, legOnly: true },
         style,
       })
     }
@@ -1066,6 +1111,55 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     bars.push({ lo, hi, y: resolved })
     placedBarsByGeneration.set(generation, bars)
     return resolved
+  }
+
+  // A solo parent (no recorded spouse) draws first, ahead of every couple's own trunk
+  // below — deliberately, not just by file order: their own trunk drop leaves straight
+  // down from their own box with no bend to nudge it by (same as a couple's own union-dot
+  // drop), so it's exactly as "fixed" a column as any of theirs. Registering it before any
+  // *leg* gets a chance to land on that same column (`resolveLegX`, used throughout the
+  // couples' loop below) is what lets a leg actually steer around it — checked the other
+  // way around, a solo parent's own trunk has no later chance to notice a leg that already
+  // committed to its column first. Solo parents don't take part in `trunkRowByUnionKey`'s
+  // own row-staggering or the shared color-exclusion pass (both `unit.spouse`-only), so
+  // running this loop first doesn't disturb either of those.
+  for (const unit of unitsByKey.values()) {
+    if (unit.spouse) continue
+    const parentPos = positions.get(unit.anchor.id)!
+    const parentBottomX = parentPos.x + NODE_WIDTH / 2
+    const parentBottomY = parentPos.y + NODE_HEIGHT
+    const childBoxes = memberBoxesExcept(new Set([unit.anchor.id, ...unit.children.map((c) => c.id)]))
+    const childrenByRow = new Map<number, Member[]>()
+    for (const child of unit.children) {
+      const y = positions.get(child.id)!.y
+      childrenByRow.set(y, [...(childrenByRow.get(y) ?? []), child])
+    }
+    for (const rowChildren of childrenByRow.values()) {
+      const targets = rowChildren.map((c) => {
+        const p = positions.get(c.id)!
+        return { x: p.x + NODE_WIDTH / 2, y: p.y }
+      })
+      const freeBarY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
+      // A solo parent's own trunk used to skip `resolveBarY` entirely — the collision
+      // backstop every other kind of trunk already goes through — so it could land right
+      // on top of (or a couple pixels from) some *other*, entirely unrelated union's own
+      // bar or leg landing in the same generation, with nothing to notice or separate
+      // them. Confirmed via devtools: a solo parent's own bar and an unrelated distant
+      // child's incoming leg, both at the same x, only 6px apart in y — reading as one
+      // continuous vertical line where they're actually two unrelated connectors.
+      const barXs = [parentBottomX, ...targets.map((t) => t.x)]
+      const barY = resolveBarY(
+        unit.anchor.generation,
+        Math.min(...barXs),
+        Math.max(...barXs),
+        freeBarY,
+        parentBottomY + MIN_LEADER,
+        targets[0].y - MIN_LEADER,
+      )
+      // A solo parent has no union dot to start from, so leave from their own bottom handle —
+      // without naming it, react-flow takes the node's *first* source handle (the left side).
+      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, parentBottomY, barY, rowChildren, undefined, unit.anchor.id, 'bottom')
+    }
   }
 
   // A stacked wife's `unionAnchorPos` (her own dot's position), kept around after this
@@ -1252,7 +1346,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
             minBarY,
             targets[0].y - MIN_LEADER,
           )
-          pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
+          pushChildTrunkAndLegs(unionId, unionAnchorPos.x, unionAnchorPos.y, barY, rowChildren, color, unionId)
         }
       }
     }
@@ -1298,7 +1392,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         freeBarY,
         positions.get(unit.children[0].id)!.y - MIN_LEADER,
       )
-      pushChildTrunkAndLegs(`union-${unit.key}`, unionAnchorPos.x, barY, unit.children, unionColors.get(unit.key), `union-${unit.key}`)
+      pushChildTrunkAndLegs(`union-${unit.key}`, unionAnchorPos.x, unionAnchorPos.y, barY, unit.children, unionColors.get(unit.key), `union-${unit.key}`)
       continue
     }
     // All of these wives share the very same row (see the trunk-row pass above), so any
@@ -1363,6 +1457,10 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       const color = unionColors.get(wife.key)
       // Her own dot down to the shared bar — a zero-width `spanLoX`/`spanHiX` reduces the
       // usual trunk shape to just this one vertical leg, with no bar segment of its own.
+      // Registered the same as any other source drop (see `pushChildTrunkAndLegs`): it
+      // always runs straight down from her own dot, with no bend to nudge it by, so it's
+      // only ever recorded here for some *other*, unrelated leg to steer clear of.
+      registerColumn(pos.x, pos.y, barY)
       edges.push({
         id: `trunk-stem-${wife.key}`,
         source: unionId,
@@ -1372,54 +1470,17 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         style: { stroke: color },
       })
       for (const child of wife.children) {
+        const trueX = positions.get(child.id)!.x + NODE_WIDTH / 2
+        const legX = resolveLegX(trueX, barY, positions.get(child.id)!.y)
         edges.push({
           id: `child-${unionId}-${child.id}`,
           source: unionId,
           target: child.id,
           type: 'elbowEdge',
-          data: { centerX: positions.get(child.id)!.x + NODE_WIDTH / 2, viaY: barY, legOnly: true },
+          data: { centerX: legX, viaY: barY, legOnly: true },
           style: { stroke: color },
         })
       }
-    }
-  }
-
-  for (const unit of unitsByKey.values()) {
-    if (unit.spouse) continue
-    const parentPos = positions.get(unit.anchor.id)!
-    const parentBottomX = parentPos.x + NODE_WIDTH / 2
-    const parentBottomY = parentPos.y + NODE_HEIGHT
-    const childBoxes = memberBoxesExcept(new Set([unit.anchor.id, ...unit.children.map((c) => c.id)]))
-    const childrenByRow = new Map<number, Member[]>()
-    for (const child of unit.children) {
-      const y = positions.get(child.id)!.y
-      childrenByRow.set(y, [...(childrenByRow.get(y) ?? []), child])
-    }
-    for (const rowChildren of childrenByRow.values()) {
-      const targets = rowChildren.map((c) => {
-        const p = positions.get(c.id)!
-        return { x: p.x + NODE_WIDTH / 2, y: p.y }
-      })
-      const freeBarY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
-      // A solo parent's own trunk used to skip `resolveBarY` entirely — the collision
-      // backstop every other kind of trunk already goes through — so it could land right
-      // on top of (or a couple pixels from) some *other*, entirely unrelated union's own
-      // bar or leg landing in the same generation, with nothing to notice or separate
-      // them. Confirmed via devtools: a solo parent's own bar and an unrelated distant
-      // child's incoming leg, both at the same x, only 6px apart in y — reading as one
-      // continuous vertical line where they're actually two unrelated connectors.
-      const barXs = [parentBottomX, ...targets.map((t) => t.x)]
-      const barY = resolveBarY(
-        unit.anchor.generation,
-        Math.min(...barXs),
-        Math.max(...barXs),
-        freeBarY,
-        parentBottomY + MIN_LEADER,
-        targets[0].y - MIN_LEADER,
-      )
-      // A solo parent has no union dot to start from, so leave from their own bottom handle —
-      // without naming it, react-flow takes the node's *first* source handle (the left side).
-      pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, barY, rowChildren, undefined, unit.anchor.id, 'bottom')
     }
   }
 
