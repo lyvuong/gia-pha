@@ -1400,7 +1400,23 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         const p = positions.get(c.id)!
         return { x: p.x + NODE_WIDTH / 2, y: p.y }
       })
-      const barY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
+      const freeBarY = pickClearSharedBarY(parentBottomX, parentBottomY, targets, childBoxes)
+      // A solo parent's own trunk used to skip `resolveBarY` entirely — the collision
+      // backstop every other kind of trunk already goes through — so it could land right
+      // on top of (or a couple pixels from) some *other*, entirely unrelated union's own
+      // bar or leg landing in the same generation, with nothing to notice or separate
+      // them. Confirmed via devtools: a solo parent's own bar and an unrelated distant
+      // child's incoming leg, both at the same x, only 6px apart in y — reading as one
+      // continuous vertical line where they're actually two unrelated connectors.
+      const barXs = [parentBottomX, ...targets.map((t) => t.x)]
+      const barY = resolveBarY(
+        unit.anchor.generation,
+        Math.min(...barXs),
+        Math.max(...barXs),
+        freeBarY,
+        parentBottomY + MIN_LEADER,
+        targets[0].y - MIN_LEADER,
+      )
       // A solo parent has no union dot to start from, so leave from their own bottom handle —
       // without naming it, react-flow takes the node's *first* source handle (the left side).
       pushChildTrunkAndLegs(unit.anchor.id, parentBottomX, barY, rowChildren, undefined, unit.anchor.id, 'bottom')
