@@ -1013,6 +1013,43 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
+  // Every trunk bar actually placed so far, per generation — a final backstop against two
+  // unrelated trunks landing almost exactly on top of each other. `trunkRowByUnionKey`
+  // already tries to prevent this ahead of time, but it judges overlap from each *wife's
+  // own* span, not the wider span the final *merged* stack bar ends up spanning once every
+  // wife's own children are pooled together — so a stacked anchor whose merged bar reaches
+  // well beyond any single wife's own reach can still slip past that check and land on the
+  // very same row as an unrelated couple's trunk it never registered as conflicting with.
+  // Checked (and appended to) right where each trunk's `barY` is finalized below, so it
+  // catches every kind of trunk — ordinary, single-wife, and merged multi-wife alike —
+  // regardless of which upstream heuristic placed it.
+  const placedBarsByGeneration = new Map<number, { lo: number; hi: number; y: number }[]>()
+
+  /** Nudges `y` away from any already-`placedBarsByGeneration` bar that reaches into
+   * `[lo, hi]` and sits within `TRUNK_ROW_GAP` of it — first trying more elevated
+   * (smaller `y`, matching the direction `trunkRowByUnionKey` already elevates conflicting
+   * trunks in), then less elevated, each in `TRUNK_ROW_GAP` steps, never leaving
+   * `[minY, maxY]` (the real vertical room between this trunk's own source and target
+   * rows). Records the resolved bar so a *third* trunk checked afterward sees it too. */
+  function resolveBarY(generation: number, lo: number, hi: number, y: number, minY: number, maxY: number): number {
+    const bars = placedBarsByGeneration.get(generation) ?? []
+    const clear = (candidate: number) => bars.every((b) => b.hi <= lo || b.lo >= hi || Math.abs(b.y - candidate) >= TRUNK_ROW_GAP)
+    let resolved = y
+    if (!clear(resolved)) {
+      resolved =
+        searchOutward(
+          y,
+          TRUNK_ROW_GAP,
+          20,
+          (v) => v >= minY && v <= maxY,
+          (v) => v >= minY && v <= maxY && clear(v),
+        ) ?? y
+    }
+    bars.push({ lo, hi, y: resolved })
+    placedBarsByGeneration.set(generation, bars)
+    return resolved
+  }
+
   // A stacked wife's `unionAnchorPos` (her own dot's position), kept around after this
   // loop so the grouped-by-anchor pass below can lay out the several wives' merged trunk
   // without re-deriving each one's dot position from scratch.
@@ -1187,7 +1224,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           // where the floor bites, even though `trunkRowByUnionKey` staggered them apart.
           const maxRowHere = maxTrunkRowByGeneration.get(unit.anchor.generation) ?? trunkRow
           const minBarY = unionAnchorPos.y + NODE_HEIGHT / 2 + MIN_LEADER + (maxRowHere - trunkRow) * TRUNK_ROW_GAP
-          const barY = Math.max(minBarY, pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP)
+          const freeBarY = Math.max(minBarY, pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP)
+          const barXs = [unionAnchorPos.x, ...targets.map((t) => t.x)]
+          const barY = resolveBarY(
+            unit.anchor.generation,
+            Math.min(...barXs),
+            Math.max(...barXs),
+            freeBarY,
+            minBarY,
+            targets[0].y - MIN_LEADER,
+          )
           pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
         }
       }
@@ -1224,21 +1270,39 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       // when there's truly only one wife in the stack to begin with.)
       const unit = wives[0]
       const unionAnchorPos = unionAnchorPosByKey.get(unit.key)!
-      const barY = unionAnchorPos.y + MIN_LEADER
+      const freeBarY = unionAnchorPos.y + MIN_LEADER
+      const childXs = unit.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)
+      const barY = resolveBarY(
+        unit.anchor.generation,
+        Math.min(unionAnchorPos.x, ...childXs),
+        Math.max(unionAnchorPos.x, ...childXs),
+        freeBarY,
+        freeBarY,
+        positions.get(unit.children[0].id)!.y - MIN_LEADER,
+      )
       pushChildTrunkAndLegs(`union-${unit.key}`, unionAnchorPos.x, barY, unit.children, unionColors.get(unit.key), `union-${unit.key}`)
       continue
     }
     // All of these wives share the very same row (see the trunk-row pass above), so any
     // one of their dots' y plus the same fixed leader gives the one shared `barY`.
-    const barY = unionAnchorPosByKey.get(wives[0].key)!.y + MIN_LEADER
+    const freeBarY = unionAnchorPosByKey.get(wives[0].key)!.y + MIN_LEADER
     const allXs = wives.flatMap((w) => {
       const pos = unionAnchorPosByKey.get(w.key)!
       return [pos.x, ...w.children.map((c) => positions.get(c.id)!.x + NODE_WIDTH / 2)]
     })
+    const anyChild = wives.flatMap((w) => w.children)[0]
+    const barY = resolveBarY(
+      wives[0].anchor.generation,
+      Math.min(...allXs),
+      Math.max(...allXs),
+      freeBarY,
+      freeBarY,
+      positions.get(anyChild.id)!.y - MIN_LEADER,
+    )
     // Only ever used to satisfy `elbowEdge`'s required `source`/`target` node ids — the
     // *shared* bar's own path is fully determined by `spanLoX`/`spanHiX`/`viaY` (see
     // `barOnly`), so which real nodes anchor it doesn't affect where it's actually drawn.
-    const anyChildId = wives.flatMap((w) => w.children)[0].id
+    const anyChildId = anyChild.id
     edges.push({
       id: `trunk-shared-${wives[0].anchor.id}`,
       source: `union-${wives[0].key}`,
