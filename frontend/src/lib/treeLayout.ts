@@ -1321,13 +1321,41 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     // *shared* bar's own path is fully determined by `spanLoX`/`spanHiX`/`viaY` (see
     // `barOnly`), so which real nodes anchor it doesn't affect where it's actually drawn.
     const anyChildId = anyChild.id
+    // The merged bar used to always draw in the same fixed neutral gold — deliberately
+    // uncolored, since it represents *every* wife together rather than any one of them.
+    // But that leaves two entirely unrelated remarried anchors' own merged bars, landing
+    // near each other in the same generation, drawn in that exact same neutral gold with
+    // nothing to tell them apart — confirmed via devtools: two different anchors' bars 20px
+    // apart, pixel-identical color. Runs through the very same exclusion-aware assignment
+    // every other union's color goes through (skipping whatever's already taken by an
+    // overlapping-span union nearby, *and* by this anchor's own wives, so the bar doesn't
+    // land on a wife's own color and read as "belonging" to just her), rather than staying
+    // a hardcoded neutral that two unrelated stacks can never be told apart by.
+    const sharedGen = wives[0].anchor.generation
+    const sharedLo = Math.min(...allXs)
+    const sharedHi = Math.max(...allXs)
+    const sharedExcluded = new Set<string>(colorsByAnchor.get(wives[0].anchor.id))
+    const sharedGenColors = colorsUsedByGeneration.get(sharedGen) ?? new Map<string, string>()
+    for (const [otherKey, color] of sharedGenColors) {
+      const other = spanByUnionKey.get(otherKey)
+      if (other && other.lo < sharedHi && sharedLo < other.hi) sharedExcluded.add(color)
+    }
+    let sharedColor = UNION_COLORS[colorIndex % UNION_COLORS.length]
+    for (let tries = 0; sharedExcluded.has(sharedColor) && tries < UNION_COLORS.length; tries++) {
+      colorIndex++
+      sharedColor = UNION_COLORS[colorIndex % UNION_COLORS.length]
+    }
+    colorIndex++
+    sharedGenColors.set(`shared-${wives[0].anchor.id}`, sharedColor)
+    colorsUsedByGeneration.set(sharedGen, sharedGenColors)
+    spanByUnionKey.set(`shared-${wives[0].anchor.id}`, { generation: sharedGen, lo: sharedLo, hi: sharedHi })
     edges.push({
       id: `trunk-shared-${wives[0].anchor.id}`,
       source: `union-${wives[0].key}`,
       target: anyChildId,
       type: 'elbowEdge',
-      data: { viaY: barY, spanLoX: Math.min(...allXs), spanHiX: Math.max(...allXs), barOnly: true },
-      style: { stroke: 'var(--color-gold-dark)' },
+      data: { viaY: barY, spanLoX: sharedLo, spanHiX: sharedHi, barOnly: true },
+      style: { stroke: sharedColor },
     })
     for (const wife of wives) {
       const unionId = `union-${wife.key}`
