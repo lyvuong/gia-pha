@@ -205,7 +205,7 @@
     "degreeAtSchool": "{{degree}} tại {{school}}",
     "occupation": "Nghề nghiệp: {{occupation}}",
     "achievements": "Thành tựu: {{list}}",
-    "diedOn": "Mất ngày {{date}}",
+    "diedOn": "Kỵ Nhật {{date}}",
     "lunarDateSuffix": "{{date}} (âm lịch)"
   },
   "pdf": {
