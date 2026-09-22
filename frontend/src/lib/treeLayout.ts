@@ -776,6 +776,11 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // the very same overlap test to keep two overlapping trunks from *also* landing on the
   // same color — see there for why that matters.
   const trunkRowByUnionKey = new Map<string, number>()
+  // The highest row actually used in each generation — needed later so a trunk pushed all
+  // the way down to the parents'-box floor still keeps `TRUNK_ROW_GAP` clearance from the
+  // *next* trunk row above it, instead of every row past the floor collapsing onto that
+  // same floor value and overlapping each other (see where this is read, below).
+  const maxTrunkRowByGeneration = new Map<number, number>()
   const unionSpansByGeneration = new Map<number, { unionKey: string; anchorId: string; connX: number; lo: number; hi: number }[]>()
   {
     for (const unit of unitsByKey.values()) {
@@ -797,7 +802,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
       list.push({ unionKey: unit.key, anchorId: unit.anchor.id, connX, lo, hi })
       unionSpansByGeneration.set(unit.anchor.generation, list)
     }
-    for (const unions of unionSpansByGeneration.values()) {
+    for (const [generation, unions] of unionSpansByGeneration.entries()) {
       // [lower, higher]: `lower` must end up on a strictly smaller row than `higher`.
       const constraints: [string, string][] = []
       for (let i = 0; i < unions.length; i++) {
@@ -873,6 +878,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           }
         }
       }
+      maxTrunkRowByGeneration.set(generation, Math.max(0, ...unions.map((u) => trunkRowByUnionKey.get(u.unionKey)!)))
     }
   }
 
@@ -1171,7 +1177,17 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
           // search prefers the midpoint of source and target, which barely differs
           // between two couples sitting in the same two generations).
           const trunkRow = trunkRowByUnionKey.get(unit.key) ?? 0
-          const barY = pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP
+          // The union dot sits at box-mid height, so the *least*-elevated bar in this
+          // generation (row 0) must stay at least a full `MIN_LEADER` below the parents'
+          // bottom edge — otherwise it (or its short vertical leader) runs horizontally
+          // behind the couple's own boxes. Every more-elevated row needs the same floor
+          // *plus* `TRUNK_ROW_GAP` per row still above it, or a row that's forced down onto
+          // this floor would land flush on top of the very next row's own bar instead of
+          // staying `TRUNK_ROW_GAP` clear of it — the two reading as one merged line right
+          // where the floor bites, even though `trunkRowByUnionKey` staggered them apart.
+          const maxRowHere = maxTrunkRowByGeneration.get(unit.anchor.generation) ?? trunkRow
+          const minBarY = unionAnchorPos.y + NODE_HEIGHT / 2 + MIN_LEADER + (maxRowHere - trunkRow) * TRUNK_ROW_GAP
+          const barY = Math.max(minBarY, pickClearSharedBarY(unionAnchorPos.x, unionAnchorPos.y, targets, childBoxes) - trunkRow * TRUNK_ROW_GAP)
           pushChildTrunkAndLegs(unionId, unionAnchorPos.x, barY, rowChildren, color, unionId)
         }
       }
