@@ -901,52 +901,47 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
-  // A remarried anchor's own wives are colored from their own dedicated, zero-based run
-  // through the palette (colorIndexByAnchor), instead of sharing the single tree-wide
-  // cycle every other couple draws from — so which colors two *sibling* wives land on
-  // never depends on how many unrelated couples happen to sit between them in iteration
-  // order. Two wives who are actually stacked together, right next to each other, are
-  // exactly the pair whose colors most need to read as different at a glance; leaving
-  // that to the global cycle risked them landing on two colors that are close in hue
-  // (`UNION_COLORS` groups several blues and several orange/browns) purely by coincidence.
+  // Every union's color comes from one shared exclusion-aware assignment, covering both
+  // an ordinary couple's trunk and a remarried anchor's several stacked wives together —
+  // they used to run through two entirely separate mechanisms (a stacked anchor's wives
+  // cycling through their own dedicated, zero-based run of the palette, unaware of what
+  // any ordinary couple nearby had already taken, and vice versa), so a stacked wife and
+  // an unrelated ordinary couple a short reach away could land on the exact same color
+  // with nothing checking for it — e.g. a remarried anchor's wife and a completely
+  // unrelated couple's trunk both landing on plain blue purely by coincidence of where
+  // each one's own cycle happened to be. One shared pass fixes that: every union, stacked
+  // or not, skips whatever colors are already taken by any *other* union in the same
+  // generation whose span it overlaps (an ordinary couple's trunk can end up overlapping
+  // another ordinary couple's it has nothing to do with too — e.g. two full-sibling groups
+  // pulled into the same row block because one child from each side married the other, see
+  // `blockOf` — and `trunkRowByUnionKey` only staggers such trunks a few pixels apart, not
+  // onto clearly separate rows).
   //
-  // An ordinary couple's trunk, on the other hand, can end up overlapping another
-  // ordinary couple's trunk it has nothing to do with — e.g. two full-sibling groups
-  // pulled into the same row block because one child from each side married the other
-  // (see `blockOf`) — and `trunkRowByUnionKey` only staggers such trunks a few pixels
-  // apart, not onto clearly separate rows. If the plain global cycle then also happens to
-  // land both on the same color (purely by coincidence of how many other couples fall
-  // between them), the two read as one thick, tangled line instead of two crossing-free
-  // ones. So an ordinary couple's color skips whatever colors are already taken by any
-  // *other* ordinary couple in the same generation whose span it overlaps, falling back
-  // to the plain cycle once every color is already spoken for.
+  // A stacked anchor's sibling wives get an *additional* exclusion on top of that: each
+  // one also skips every color already claimed by an earlier sister, even a childless one
+  // with no span of her own to overlap-check against — they're exactly the pair whose
+  // colors most need to read as different at a glance, sitting right next to each other in
+  // one stack, so that guarantee can't be left to span overlap alone.
   let colorIndex = 0
-  const colorIndexByAnchor = new Map<string, number>()
   const unionColors = new Map<string, string>()
   const spanByUnionKey = new Map<string, { generation: number; lo: number; hi: number }>()
   for (const [generation, unions] of unionSpansByGeneration) {
     for (const u of unions) spanByUnionKey.set(u.unionKey, { generation, lo: u.lo, hi: u.hi })
   }
   const colorsUsedByGeneration = new Map<number, Map<string, string>>()
+  const colorsByAnchor = new Map<string, Set<string>>()
   for (const unit of unitsByKey.values()) {
     if (!unit.spouse) continue
-    if ((spouseCountOf.get(unit.anchor.id) ?? 0) >= 2) {
-      const local = colorIndexByAnchor.get(unit.anchor.id) ?? 0
-      unionColors.set(unit.key, UNION_COLORS[local % UNION_COLORS.length])
-      colorIndexByAnchor.set(unit.anchor.id, local + 1)
-      continue
-    }
+    const stacked = (spouseCountOf.get(unit.anchor.id) ?? 0) >= 2
+    const siblingColors = stacked ? (colorsByAnchor.get(unit.anchor.id) ?? new Set<string>()) : undefined
     const span = spanByUnionKey.get(unit.key)
-    if (!span) {
-      unionColors.set(unit.key, UNION_COLORS[colorIndex % UNION_COLORS.length])
-      colorIndex++
-      continue
-    }
-    const sameGenColors = colorsUsedByGeneration.get(span.generation) ?? new Map<string, string>()
-    const excluded = new Set<string>()
-    for (const [otherKey, color] of sameGenColors) {
-      const other = spanByUnionKey.get(otherKey)
-      if (other && other.lo < span.hi && span.lo < other.hi) excluded.add(color)
+    const excluded = new Set<string>(siblingColors)
+    if (span) {
+      const sameGenColors = colorsUsedByGeneration.get(span.generation) ?? new Map<string, string>()
+      for (const [otherKey, color] of sameGenColors) {
+        const other = spanByUnionKey.get(otherKey)
+        if (other && other.lo < span.hi && span.lo < other.hi) excluded.add(color)
+      }
     }
     let color = UNION_COLORS[colorIndex % UNION_COLORS.length]
     for (let tries = 0; excluded.has(color) && tries < UNION_COLORS.length; tries++) {
@@ -955,8 +950,12 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
     colorIndex++
     unionColors.set(unit.key, color)
-    sameGenColors.set(unit.key, color)
-    colorsUsedByGeneration.set(span.generation, sameGenColors)
+    if (span) {
+      const sameGenColors = colorsUsedByGeneration.get(span.generation) ?? new Map<string, string>()
+      sameGenColors.set(unit.key, color)
+      colorsUsedByGeneration.set(span.generation, sameGenColors)
+    }
+    if (siblingColors) colorsByAnchor.set(unit.anchor.id, new Set(siblingColors).add(color))
   }
 
   // One of a remarried anchor's several wives, and every one of her own children, get
