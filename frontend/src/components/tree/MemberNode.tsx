@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Handle, Position, useStore, type NodeProps } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
 import { Avatar } from '../common/Avatar'
@@ -21,8 +22,16 @@ export function MemberNode({ data, selected }: NodeProps<TreeNode>) {
   const birthName = member.names.find((n) => n.label === 'birthName' && n.value)?.value
   const maidenName = member.names.find((n) => n.label === 'maidenName' && n.value)?.value
 
+  // Blended with the theme's own panel background (never used at full strength) so the
+  // card's usual text colors — already tuned for contrast against that panel background in
+  // both light and dark theme — stay readable without needing a per-family text color of
+  // their own.
+  const style = data.avatarColor
+    ? ({ '--member-node-bg': `color-mix(in srgb, ${data.avatarColor} 24%, var(--color-panel-bg))` } as CSSProperties)
+    : undefined
+
   return (
-    <div className={`member-node${selected ? ' member-node-selected' : ''}${compact ? ' member-node-compact' : ''}`}>
+    <div className={`member-node${selected ? ' member-node-selected' : ''}${compact ? ' member-node-compact' : ''}`} style={style}>
       <Handle type="target" position={Position.Top} />
       <Handle type="target" id="left" position={Position.Left} />
       <Handle type="source" id="left" position={Position.Left} />

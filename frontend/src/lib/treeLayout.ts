@@ -56,12 +56,15 @@ export interface TreeNodeData extends Record<string, unknown> {
   spouseId?: string
   /** Union-node only: the other half of the couple. */
   anchorId?: string
-  /** Member-node only: overrides the avatar's usual name-hash color with a remarried
-   * anchor's own union color, for that one spouse herself and every one of her children —
-   * the same color as her dot, her stem into the shared bar, and her children's own edge
-   * legs — so it's readable straight off a box, with no line-tracing needed, both which
-   * wife it is and which of her children belong to her. `undefined` for anyone outside
-   * such a stack, leaving their avatar's usual color alone. */
+  /** Member-node only: overrides the avatar's usual name-hash color, and tints the card's
+   * own background, with their parents' union color — the same color as that union's dot,
+   * trunk bar, and edge legs to its children — so every full sibling group reads as one
+   * shared color and any two different sets of parents read as two different ones, no
+   * line-tracing needed. A remarried anchor's own wife additionally gets her own union's
+   * color on her box (so which wife a stacked box belongs to is readable too), unless she's
+   * also someone's recorded child, in which case her own birth family's color wins.
+   * `undefined` for a root member with no recorded parents (or a solo-parent's child),
+   * leaving their avatar's usual name-hash color and the card's plain background alone. */
   avatarColor?: string
 }
 
@@ -958,17 +961,27 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     if (siblingColors) colorsByAnchor.set(unit.anchor.id, new Set(siblingColors).add(color))
   }
 
-  // One of a remarried anchor's several wives, and every one of her own children, get
-  // that wife's own union color painted onto their avatars too — the same color already
-  // on her dot, her stem into the shared bar, and her children's own edge legs — so which
-  // wife (and which of her children) a box belongs to reads straight off the avatar, with
-  // no need to trace a line back up into the stack.
   const avatarColorByMemberId = new Map<string, string>()
+
+  // One of a remarried anchor's several wives gets her own union color painted onto her
+  // avatar too — the same color already on her dot and her stem into the shared bar — so
+  // which wife a stacked box belongs to reads straight off it, with no need to trace a
+  // line back up into the stack. Runs before the every-child pass below so it's always
+  // overridable by a wife's own birth family color, on the rare box that's both.
   for (const unit of unitsByKey.values()) {
     if (!unit.spouse || (spouseCountOf.get(unit.anchor.id) ?? 0) < 2) continue
     const color = unionColors.get(unit.key)
+    if (color) avatarColorByMemberId.set(unit.spouse.id, color)
+  }
+
+  // Every child's own avatar (and card background — see `MemberNode`) takes their
+  // parents' union color too, for every union, not just a remarried anchor's stack — so a
+  // full sibling group always reads as one shared color, and any two different sets of
+  // parents (an ordinary couple, or two of a remarried anchor's wives) always read as two
+  // different ones, at a glance and without tracing a single connector line.
+  for (const unit of unitsByKey.values()) {
+    const color = unionColors.get(unit.key)
     if (!color) continue
-    avatarColorByMemberId.set(unit.spouse.id, color)
     for (const child of unit.children) avatarColorByMemberId.set(child.id, color)
   }
 

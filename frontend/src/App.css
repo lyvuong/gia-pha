@@ -317,7 +317,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-panel-bg);
+  /* `--member-node-bg` is set inline per-node (see `MemberNode`) to a tint of that
+   * member's parents' union color, blended with this same panel background — so it stays
+   * legible with the card's normal (theme-aware) text colors in both light and dark theme
+   * without those needing a per-family override of their own. Falls back to the plain
+   * panel background for anyone with no such color (e.g. a root member). */
+  background: var(--member-node-bg, var(--color-panel-bg));
   border: 2px solid var(--color-gold-dark);
   border-radius: 10px;
   padding: 8px 12px;
