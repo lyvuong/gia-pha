@@ -22,11 +22,30 @@ const CHANNEL_SPACING = 20
  * stacked boxes starting to overlap. */
 const WIFE_STACK_STEP = NODE_HEIGHT + HORIZONTAL_GAP / 2
 
-/** Colorblind-safe (Okabe–Ito) palette assigned one-per-couple, cycling if there are
- * more couples than colors — so a union's spouse line, its own dot, and every line to
- * its children share one color, making "which children belong to which parents"
- * readable at a glance. */
-const UNION_COLORS = ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#E69F00', '#56B4E9', '#B8860B']
+/** Assigned one-per-couple, cycling if there are more couples than colors — so a union's
+ * spouse line, its own dot, and every line to its children share one color, making "which
+ * children belong to which parents" readable at a glance. Starts from the 7
+ * colorblind-safe Okabe–Ito hues, then adds a second ring of equally spread-out hues (each
+ * picked to sit far from every earlier one, not just from its own hue-family neighbor) —
+ * a busy generation with a dozen-plus crossing trunks was cycling back to a near-duplicate
+ * color within just a few couples on the original 7, reading as one tangled line where two
+ * were actually unrelated. The extra colors trade a little colorblind precision for a much
+ * longer run before that cycling repeats. */
+const UNION_COLORS = [
+  '#0072B2', // blue
+  '#D55E00', // vermillion
+  '#009E73', // bluish green
+  '#CC79A7', // reddish purple
+  '#E69F00', // orange
+  '#56B4E9', // sky blue
+  '#B8860B', // dark goldenrod
+  '#8B0000', // dark red
+  '#6A3D9A', // purple
+  '#4C6A00', // olive
+  '#325288', // navy slate
+  '#A0522D', // sienna
+  '#E7298A', // magenta
+]
 
 export interface TreeNodeData extends Record<string, unknown> {
   member?: Member
@@ -889,7 +908,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // order. Two wives who are actually stacked together, right next to each other, are
   // exactly the pair whose colors most need to read as different at a glance; leaving
   // that to the global cycle risked them landing on two colors that are close in hue
-  // (`UNION_COLORS` has two blues and three orange/browns) purely by coincidence.
+  // (`UNION_COLORS` groups several blues and several orange/browns) purely by coincidence.
   //
   // An ordinary couple's trunk, on the other hand, can end up overlapping another
   // ordinary couple's trunk it has nothing to do with — e.g. two full-sibling groups
