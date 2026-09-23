@@ -117,6 +117,15 @@ export function TreePage() {
     setChartType(type ?? (chartType === 'full' ? 'familyGroup' : chartType))
   }
 
+  /** Picking someone in the search bar, or double-clicking their box: open their details
+   * and re-center the chart (and the search bar's name) on them. */
+  function focusMember(m: Member) {
+    setShowingTrash(false)
+    setShowingRequests(false)
+    setSelectedMember(m)
+    showChartFor(m.id)
+  }
+
   function showFullTree() {
     setRootMemberId(null)
     setChartType('full')
@@ -195,16 +204,7 @@ export function TreePage() {
             {giaPha.name}
           </h1>
         )}
-        <SearchBar
-          members={members}
-          selectedName={rootMember?.fullName}
-          onSelectMember={(m) => {
-            setShowingTrash(false)
-            setShowingRequests(false)
-            setSelectedMember(m)
-            showChartFor(m.id)
-          }}
-        />
+        <SearchBar members={members} selectedName={rootMember?.fullName} onSelectMember={focusMember} />
         {rootId && (
           <div className="chart-type-select">
             <select
@@ -369,6 +369,7 @@ export function TreePage() {
             // Only the first pick fills the search bar and chooses the chart; after that a click just opens the details.
             if (!rootId) showChartFor(m.id)
           }}
+          onFocusMember={focusMember}
           containerRef={treeContainerRef}
         />
 

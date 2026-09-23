@@ -40,10 +40,12 @@ interface TreeViewProps {
   /** Identifies the current root person + chart type; the viewport re-fits when it changes. */
   viewKey: string
   onSelectMember: (member: Member) => void
+  /** Double-clicking a member's box — same as picking them in the search bar. */
+  onFocusMember: (member: Member) => void
   containerRef?: Ref<HTMLDivElement>
 }
 
-export function TreeView({ members, allMembers, chartType, rootId, selectedMemberId, viewKey, onSelectMember, containerRef }: TreeViewProps) {
+export function TreeView({ members, allMembers, chartType, rootId, selectedMemberId, viewKey, onSelectMember, onFocusMember, containerRef }: TreeViewProps) {
   const isFan = chartType === 'fan' && rootId !== null
   const { nodes, edges } = useMemo(() => {
     if (isFan) {
@@ -95,6 +97,11 @@ export function TreeView({ members, allMembers, chartType, rootId, selectedMembe
     if (member) onSelectMember(member)
   }
 
+  const handleNodeDoubleClick: NodeMouseHandler = (_event, node) => {
+    const member = members.find((m) => m.id === node.id)
+    if (member) onFocusMember(member)
+  }
+
   return (
     <div ref={containerRef} className="tree-view-container">
       <ReactFlow
@@ -103,6 +110,10 @@ export function TreeView({ members, allMembers, chartType, rootId, selectedMembe
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodeClick={handleNodeClick}
+        onNodeDoubleClick={handleNodeDoubleClick}
+        // d3-zoom's own double-click zoom swallows the event before it ever reaches a node
+        // (it bypasses react-flow's `nopan` filter), so it has to go for the above to fire.
+        zoomOnDoubleClick={false}
         nodesDraggable={false}
         minZoom={0.02}
         fitView
