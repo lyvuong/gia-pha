@@ -367,6 +367,25 @@
   line-height: 1;
 }
 
+/* Same spot as the eldest son's star — a member only ever has one of the two. */
+.member-node-eldest-daughter {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-gender-female);
+  border: 1.5px solid color-mix(in srgb, var(--color-gender-female) 65%, black);
+  box-shadow: 0 1px 3px var(--color-shadow);
+  color: white;
+  font-size: 11px;
+  line-height: 1;
+}
+
 .member-node-gender-male {
   color: var(--color-gender-male);
 }

@@ -3,7 +3,7 @@ import '@xyflow/react/dist/style.css'
 import { useEffect, useMemo, type Ref } from 'react'
 import type { ChartType } from '../../lib/chartViews'
 import { computeFanLayout } from '../../lib/fanLayout'
-import { computeTreeLayout, findEldestSonIds, type TreeNode } from '../../lib/treeLayout'
+import { computeTreeLayout, findEldestChildIds, type TreeNode } from '../../lib/treeLayout'
 import type { Member } from '../../types/models'
 import { ElbowEdge } from './ElbowEdge'
 import { FanNode } from './FanNode'
@@ -71,7 +71,8 @@ export function TreeView({ members, allMembers, chartType, rootId, selectedMembe
     return computeTreeLayout(members)
   }, [members, isFan, rootId, selectedMemberId, onSelectMember])
 
-  const eldestSonIds = useMemo(() => findEldestSonIds(allMembers), [allMembers])
+  const eldestSonIds = useMemo(() => findEldestChildIds(allMembers, 'male'), [allMembers])
+  const eldestDaughterIds = useMemo(() => findEldestChildIds(allMembers, 'female'), [allMembers])
 
   const styledNodes = useMemo(
     () =>
@@ -79,10 +80,14 @@ export function TreeView({ members, allMembers, chartType, rootId, selectedMembe
         isFan
           ? n
           : n.type === 'memberNode'
-            ? { ...n, selected: n.id === selectedMemberId, data: { ...n.data, isEldestSon: eldestSonIds.has(n.id) } }
+            ? {
+                ...n,
+                selected: n.id === selectedMemberId,
+                data: { ...n.data, isEldestSon: eldestSonIds.has(n.id), isEldestDaughter: eldestDaughterIds.has(n.id) },
+              }
             : { ...n, selected: n.id === selectedMemberId },
       ),
-    [nodes, selectedMemberId, isFan, eldestSonIds],
+    [nodes, selectedMemberId, isFan, eldestSonIds, eldestDaughterIds],
   )
 
   const handleNodeClick: NodeMouseHandler = (_event, node) => {

@@ -27,6 +27,7 @@
     "search": "Tìm thành viên...",
     "generation": "Thế hệ {{n}}",
     "eldestSon": "Trưởng nam",
+    "eldestDaughter": "Trưởng nữ",
     "createTitle": "Tạo gia phả của bạn",
     "createNamePlaceholder": "Tên gia phả, ví dụ \"Gia phả họ Nguyễn\"",
     "createButton": "Tạo",

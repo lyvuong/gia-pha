@@ -67,9 +67,12 @@ export interface TreeNodeData extends Record<string, unknown> {
    * leaving their avatar's usual name-hash color and the card's plain background alone. */
   avatarColor?: string
   /** Member-node only: true for his father's eldest son (trưởng nam) —
-   * see `findEldestSonIds`. Set by `TreeView`, not `computeTreeLayout`, since a
+   * see `findEldestChildIds`. Set by `TreeView`, not `computeTreeLayout`, since a
    * filtered chart may leave out the siblings that decide it. */
   isEldestSon?: boolean
+  /** Member-node only: true for her father's eldest daughter (trưởng nữ) — same rules
+   * as `isEldestSon`. */
+  isEldestDaughter?: boolean
 }
 
 /** Stored `generation` values are relative (can be negative, e.g. an ancestor added
@@ -298,30 +301,30 @@ export function compareBirthOrder(a: Member, b: Member): number {
   return 0
 }
 
-/** The eldest son (trưởng nam) of each father: his oldest son across all his wives, not
- * one per wife. Sons whose father isn't recorded fall back to one per recorded parent set.
- * Two sons with different mothers are compared by birth date when both have one, and
- * otherwise by their mothers' own order among the father's wives (earlier wife first) —
- * `siblingOrder` only ranks full siblings against each other, so it can't settle it.
- * Must be given the whole tree's members, not a filtered chart's, so a son's status
- * doesn't depend on which siblings are on screen. */
-export function findEldestSonIds(members: Member[]): Set<string> {
+/** The eldest son (trưởng nam) or eldest daughter (trưởng nữ) of each father: his oldest
+ * child of that gender across all his wives, not one per wife. Children whose father isn't
+ * recorded fall back to one per recorded parent set. Two children with different mothers
+ * are compared by birth date when both have one, and otherwise by their mothers' own order
+ * among the father's wives (earlier wife first) — `siblingOrder` only ranks full siblings
+ * against each other, so it can't settle it. Must be given the whole tree's members, not a
+ * filtered chart's, so a child's status doesn't depend on which siblings are on screen. */
+export function findEldestChildIds(members: Member[], gender: 'male' | 'female'): Set<string> {
   const byId = new Map(members.map((m) => [m.id, m]))
-  const sonsByFather = new Map<string, Member[]>()
+  const childrenByFather = new Map<string, Member[]>()
   for (const m of members) {
-    if (m.gender !== 'male') continue
+    if (m.gender !== gender) continue
     const parents = m.parentIds.filter((p) => byId.has(p))
     if (parents.length === 0) continue
     const father = parents.find((p) => byId.get(p)?.gender === 'male')
     const key = father ?? [...parents].sort().join('|')
-    sonsByFather.set(key, [...(sonsByFather.get(key) ?? []), m])
+    childrenByFather.set(key, [...(childrenByFather.get(key) ?? []), m])
   }
 
-  const motherOf = (son: Member, fatherId: string): Member | undefined =>
-    son.parentIds.filter((p) => p !== fatherId).map((p) => byId.get(p)).find((p) => p !== undefined)
+  const motherOf = (child: Member, fatherId: string): Member | undefined =>
+    child.parentIds.filter((p) => p !== fatherId).map((p) => byId.get(p)).find((p) => p !== undefined)
 
   const eldest = new Set<string>()
-  for (const [key, sons] of sonsByFather.entries()) {
+  for (const [key, children] of childrenByFather.entries()) {
     const compare = (a: Member, b: Member): number => {
       const motherA = motherOf(a, key)
       const motherB = motherOf(b, key)
@@ -331,7 +334,7 @@ export function findEldestSonIds(members: Member[]): Set<string> {
       }
       return compareBirthOrder(a, b) || a.id.localeCompare(b.id)
     }
-    eldest.add(sons.sort(compare)[0].id)
+    eldest.add(children.sort(compare)[0].id)
   }
   return eldest
 }
