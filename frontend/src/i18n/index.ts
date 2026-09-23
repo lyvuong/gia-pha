@@ -5,13 +5,15 @@ import vi from './vi.json'
 
 const STORAGE_KEY = 'gia-pha-language'
 const storedLanguage = localStorage.getItem(STORAGE_KEY)
+// Shared links carry the sharer's language (?lang=en|vi); it applies until the visitor picks their own.
+const linkLanguage = new URLSearchParams(window.location.search).get('lang')
 
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     vi: { translation: vi },
   },
-  lng: storedLanguage ?? 'en',
+  lng: storedLanguage ?? (linkLanguage === 'vi' || linkLanguage === 'en' ? linkLanguage : 'en'),
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
 })

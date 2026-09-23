@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppFooter } from './components/common/AppFooter'
+import { LanguageInUrl } from './components/common/LanguageInUrl'
 import { AboutPage } from './pages/AboutPage'
 import { JoinPage } from './pages/JoinPage'
 import { RootPage } from './pages/RootPage'
@@ -12,6 +13,7 @@ const TreePage = lazy(() => import('./pages/TreePage').then((m) => ({ default: m
 export function App() {
   return (
     <BrowserRouter>
+      <LanguageInUrl />
       <div className="app-shell">
         <main className="app-main">
           <Suspense fallback={<p className="page-status">…</p>}>

@@ -36,7 +36,7 @@ import {
 import type { Member } from '../types/models'
 
 export function TreePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { giaPhaId } = useParams<{ giaPhaId: string }>()
   const { user, loading: authLoading } = useAuth()
   const { giaPha, loading: giaPhaLoading } = useGiaPha(giaPhaId)
@@ -329,7 +329,7 @@ export function TreePage() {
           </div>
         )}
         <UserMenu
-          inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}` : undefined}
+          inviteLink={giaPha.inviteCode ? `${window.location.origin}/join/${giaPha.inviteCode}?lang=${i18n.language}` : undefined}
           trashCount={deletedMembers.length}
           displayName={myMember?.fullName}
           onOpenProfile={openMyProfile}
