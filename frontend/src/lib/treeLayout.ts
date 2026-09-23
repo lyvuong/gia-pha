@@ -419,9 +419,25 @@ type BlockItem = { kind: 'single'; member: Member } | { kind: 'stack'; anchor: M
  *   line down to her own children, only ever runs horizontally-then-vertically: a wife's
  *   children exit from her *right* edge into the gap beside the stack, then turn down —
  *   never straight down through whichever other wife is stacked below her.
+ * - A generation whose children's trunks don't all fit, a clear `TRUNK_ROW_GAP` apart and
+ *   off every box, in the usual gap above the next generation gets a taller gap instead:
+ *   the layout is re-run with the shortfall added below that generation until it fits.
  */
 export function computeTreeLayout(members: Member[]): LayoutResult {
-  if (members.length === 0) return { nodes: [], edges: [] }
+  const extraGapOf = new Map<number, number>()
+  for (let attempt = 0; ; attempt++) {
+    const { result, shortfallOf } = computeTreeLayoutOnce(members, extraGapOf)
+    if (shortfallOf.size === 0 || attempt === 12) return result
+    for (const [generation, shortfall] of shortfallOf) extraGapOf.set(generation, (extraGapOf.get(generation) ?? 0) + shortfall)
+  }
+}
+
+/** One layout pass with `extraGapOf` added below each generation's band, reporting how
+ * much vertical room (per generation) its trunks still came up short by — see
+ * `resolveBarY`. */
+function computeTreeLayoutOnce(members: Member[], extraGapOf: Map<number, number>): { result: LayoutResult; shortfallOf: Map<number, number> } {
+  const shortfallOf = new Map<number, number>()
+  if (members.length === 0) return { result: { nodes: [], edges: [] }, shortfallOf }
 
   const byId = new Map(members.map((m) => [m.id, m]))
 
@@ -638,10 +654,16 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   // last wife in the tallest stack needs the same trailing `ROW_HEIGHT` worth of room the
   // single-spouse case gets, for the union-to-children trunk routing that lives there
   // (see `trunkRowByWifeId`) — the wives above her don't.
+  //
+  // `baseBandHeightOf` leaves out any `extraGapOf` room (see `computeTreeLayout`), so a
+  // stacked wife's union dot stays tucked right under the stack and that extra room lands
+  // between the dots and the children, where the crowded trunk bars actually need it.
+  const baseBandHeightOf = new Map<number, number>()
   const bandHeightOf = new Map<number, number>()
   for (const generation of generations) {
     const maxWives = Math.max(1, ...byGeneration.get(generation)!.map((m) => spouseCountOf.get(m.id) ?? 1))
-    bandHeightOf.set(generation, (maxWives - 1) * WIFE_STACK_STEP + ROW_HEIGHT)
+    baseBandHeightOf.set(generation, (maxWives - 1) * WIFE_STACK_STEP + ROW_HEIGHT)
+    bandHeightOf.set(generation, baseBandHeightOf.get(generation)! + (extraGapOf.get(generation) ?? 0))
   }
   const bandTopOf = new Map<number, number>()
   let cumulativeY = 0
@@ -1160,24 +1182,44 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
   const placedBarsByGeneration = new Map<number, { lo: number; hi: number; y: number }[]>()
 
   /** Nudges `y` away from any already-`placedBarsByGeneration` bar that reaches into
-   * `[lo, hi]` and sits within `TRUNK_ROW_GAP` of it — first trying more elevated
+   * `[lo, hi]` and sits within `TRUNK_ROW_GAP` of it, and off of any member's box the bar
+   * would otherwise run behind (or skim the edge of) — first trying more elevated
    * (smaller `y`, matching the direction `trunkRowByUnionKey` already elevates conflicting
    * trunks in), then less elevated, each in `TRUNK_ROW_GAP` steps, never leaving
    * `[minY, maxY]` (the real vertical room between this trunk's own source and target
-   * rows). Records the resolved bar so a *third* trunk checked afterward sees it too. */
+   * rows). Box clearance wins over bar spacing when both can't be had. Records the
+   * resolved bar so a *third* trunk checked afterward sees it too.
+   *
+   * The box check matters most for a remarried anchor's merged bar, whose `y` is fixed
+   * off its wives' dots with no box-aware search of its own: confirmed via devtools, a
+   * two-wife stack's bar running straight through a *taller* neighboring stack's bottom
+   * wife, 2px from an unrelated solo parent's trunk — and pinned there, since it used to
+   * be given no room (`minY === maxY`) to move out. */
   function resolveBarY(generation: number, lo: number, hi: number, y: number, minY: number, maxY: number): number {
     const bars = placedBarsByGeneration.get(generation) ?? []
-    const clear = (candidate: number) => bars.every((b) => b.hi <= lo || b.lo >= hi || Math.abs(b.y - candidate) >= TRUNK_ROW_GAP)
+    const margin = MIN_LEADER / 2
+    const clearOfBoxes = (candidate: number) =>
+      ![...positions.values()].some(
+        (b) => hi > b.x && lo < b.x + NODE_WIDTH && candidate > b.y - margin && candidate < b.y + NODE_HEIGHT + margin,
+      )
+    const clearOfBars = (candidate: number) => bars.every((b) => b.hi <= lo || b.lo >= hi || Math.abs(b.y - candidate) >= TRUNK_ROW_GAP)
+    const inRange = (v: number) => v >= minY && v <= maxY
+    const fits = (v: number) => inRange(v) && clearOfBoxes(v) && clearOfBars(v)
     let resolved = y
-    if (!clear(resolved)) {
+    if (!fits(resolved)) {
       resolved =
-        searchOutward(
-          y,
-          TRUNK_ROW_GAP,
-          20,
-          (v) => v >= minY && v <= maxY,
-          (v) => v >= minY && v <= maxY && clear(v),
-        ) ?? y
+        searchOutward(y, TRUNK_ROW_GAP, 20, inRange, fits) ??
+        searchOutward(y, TRUNK_ROW_GAP, 20, inRange, (v) => inRange(v) && clearOfBoxes(v)) ??
+        y
+    }
+    // Nowhere in range fits: this generation's gap is too short for all of its trunks.
+    // Ask for at least one more row, or enough to open up an empty range at all — the
+    // per-generation max (not sum) of those, plus one row per extra such bar, so a gap
+    // crowded by many bars grows quickly without every bar's deficit being counted twice.
+    if (!fits(resolved)) {
+      const deficit = Math.max(0, minY - maxY) + TRUNK_ROW_GAP
+      const prev = shortfallOf.get(generation)
+      shortfallOf.set(generation, prev === undefined ? deficit : Math.max(prev, deficit) + TRUNK_ROW_GAP)
     }
     bars.push({ lo, hi, y: resolved })
     placedBarsByGeneration.set(generation, bars)
@@ -1324,7 +1366,7 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
         const trunkRow = trunkRowByUnionKey.get(unit.key) ?? 0
         unionAnchorPos = {
           x: channelX,
-          y: bandTop + bandHeightOf.get(unit.anchor.generation)! - 2 * MIN_LEADER - trunkRow * TRUNK_ROW_GAP,
+          y: bandTop + baseBandHeightOf.get(unit.anchor.generation)! - 2 * MIN_LEADER - trunkRow * TRUNK_ROW_GAP,
         }
         needsUnionEdge = true
         unionEdgeCenterX = channelX
@@ -1555,5 +1597,5 @@ export function computeTreeLayout(members: Member[]): LayoutResult {
     }
   }
 
-  return { nodes, edges }
+  return { result: { nodes, edges }, shortfallOf }
 }
